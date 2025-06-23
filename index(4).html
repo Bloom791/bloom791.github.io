@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloom791 - AKA Knarf - AKA Bloosmoy</title>
+  <style>
+    /* Fonts & Reset */
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: url('https://files.catbox.moe/5cg4qw.gif') no-repeat center center fixed;
+      background-size: cover;
+      backdrop-filter: blur(6px);
+      color: #fff;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .overlay {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    p {
+      font-size: 1.2rem;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    .corner-gif {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 120px;
+      height: auto;
+      opacity: 0.8;
+      filter: brightness(0.9) saturate(0.8);
+      image-rendering: auto;
+      animation: none;
+      margin: 0;
+      padding: 0;
+      z-index: 1000;
+    }
+
+    .bottom-middle-icons {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 40px;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .icon-with-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'VT323', monospace;
+      font-size: 1.5rem;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      transition: transform 0.2s ease;
+    }
+
+    .icon-with-label img {
+      width: 80px;
+      height: auto;
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+
+    .icon-with-label img:hover {
+      transform: translateY(-6px);
+    }
+
+    .icon-with-label img:active {
+      transform: translateY(3px);
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <h1>BLOOM</h1>
+    <p>
+      I'm into horror, animation, CGI, and making weird & creepy stuff for YouTube.
+    </p>
+    <p>
+      I mostly just do short films, episodes fo my horror series, or experimental visuals.
+    </p>
+    <p>
+      I use a mix of tools like Blender, Davinci Resolve, and Adobe Flash
+    </p>
+    <p>
+      If it's unsettling or cinematic, chances are I'm working on it.
+    </p>
+    <p>
+      This site is just a site where I just put all my socials. Nothing too special.
+    </p>
+  </div>
+
+  <!-- Bottom-left GIF -->
+  <img class="corner-gif" src="https://i.imgur.com/FAXEJ1D.gif" alt="corner gif" />
+
+  <!-- Bottom-middle icons with labels and links -->
+  <div class="bottom-middle-icons">
+    <div class="icon-with-label">
+      <span>Bloosmoy</span>
+      <a href="https://www.youtube.com/@Bloosmoy" target="_blank">
+        <img src="https://files.catbox.moe/3cy2c6.png" alt="Bloosmoy Icon" />
+      </a>
+    </div>
+    <div class="icon-with-label">
+      <span>Bloom791</span>
+      <a href="https://www.youtube.com/@Bloom791" target="_blank">
+        <img src="https://files.catbox.moe/3cy2c6.png" alt="Bloom791 Icon" />
+      </a>
+    </div>
+  </div>
+
+  <!-- Audio Randomizer -->
+  <script>
+    const audioOptions = [
+      "https://files.catbox.moe/maoyhw.mp3",
+      "https://files.catbox.moe/7j8iqc.mp3",
+      "https://files.catbox.moe/5w384r.mp3"
+    ];
+    const selectedAudio = audioOptions[Math.floor(Math.random() * audioOptions.length)];
+    const audio = new Audio(selectedAudio);
+    audio.loop = true;
+    audio.volume = 0;
+    audio.play();
+
+    // Fade in
+    const fadeIn = setInterval(() => {
+      if (audio.volume < 0.3) {
+        audio.volume += 0.01;
+      } else {
+        clearInterval(fadeIn);
+      }
+    }, 200);
+  </script>
+</body>
+</html>
