@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bloom791 - AKA Knarf - AKA Bloosmoy</title>
   <style>
-    /* Fonts & Reset */
     @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
     * {
@@ -17,6 +16,7 @@
 
     html, body {
       height: 100%;
+      overflow: hidden;
     }
 
     body {
@@ -35,6 +35,8 @@
       margin: auto;
       border-radius: 12px;
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 1s ease;
     }
 
     h1 {
@@ -59,9 +61,8 @@
       filter: brightness(0.9) saturate(0.8);
       image-rendering: auto;
       animation: none;
-      margin: 0;
-      padding: 0;
       z-index: 1000;
+      display: none;
     }
 
     .bottom-middle-icons {
@@ -73,6 +74,7 @@
       gap: 40px;
       align-items: center;
       z-index: 1000;
+      display: none;
     }
 
     .icon-with-label {
@@ -100,10 +102,41 @@
     .icon-with-label img:active {
       transform: translateY(3px);
     }
+
+    .intro-screen {
+      position: fixed;
+      inset: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: transform 0.7s ease-out, opacity 1s ease;
+    }
+
+    .intro-text {
+      color: pink;
+      font-size: 2rem;
+      font-family: 'VT323', monospace;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .intro-text:hover {
+      transform: translateY(-5px);
+    }
+
+    .intro-text:active {
+      transform: translateY(3px);
+    }
   </style>
 </head>
 <body>
-  <div class="overlay">
+  <div class="intro-screen" id="intro">
+    <div class="intro-text" id="introText">Click to Continue</div>
+  </div>
+
+  <div class="overlay" id="main">
     <h1>BLOOM</h1>
     <p>
       I'm into horror, animation, CGI, and making weird & creepy stuff for YouTube.
@@ -122,11 +155,9 @@
     </p>
   </div>
 
-  <!-- Bottom-left GIF -->
-  <img class="corner-gif" src="https://i.imgur.com/FAXEJ1D.gif" alt="corner gif" />
+  <img class="corner-gif" id="gif" src="https://i.imgur.com/FAXEJ1D.gif" alt="corner gif" />
 
-  <!-- Bottom-middle icons with labels and links -->
-  <div class="bottom-middle-icons">
+  <div class="bottom-middle-icons" id="icons">
     <div class="icon-with-label">
       <span>Bloosmoy</span>
       <a href="https://www.youtube.com/@Bloosmoy" target="_blank">
@@ -141,27 +172,37 @@
     </div>
   </div>
 
-  <!-- Audio Randomizer -->
   <script>
     const audioOptions = [
       "https://files.catbox.moe/maoyhw.mp3",
-      "https://files.catbox.moe/7j8iqc.mp3",
       "https://files.catbox.moe/5w384r.mp3"
     ];
     const selectedAudio = audioOptions[Math.floor(Math.random() * audioOptions.length)];
     const audio = new Audio(selectedAudio);
     audio.loop = true;
     audio.volume = 0;
-    audio.play();
 
-    // Fade in
-    const fadeIn = setInterval(() => {
-      if (audio.volume < 0.3) {
-        audio.volume += 0.01;
-      } else {
-        clearInterval(fadeIn);
-      }
-    }, 200);
+    document.getElementById("introText").addEventListener("click", () => {
+      const intro = document.getElementById("intro");
+      intro.style.transition = "transform 0.3s ease-out, opacity 1s ease";
+      intro.style.transform = "scale(2)";
+      intro.style.opacity = 0;
+      setTimeout(() => {
+        intro.style.display = "none";
+        document.getElementById("main").style.opacity = 1;
+        document.getElementById("gif").style.display = "block";
+        document.getElementById("icons").style.display = "flex";
+        audio.play();
+
+        const fadeIn = setInterval(() => {
+          if (audio.volume < 0.3) {
+            audio.volume += 0.01;
+          } else {
+            clearInterval(fadeIn);
+          }
+        }, 100);
+      }, 1000);
+    });
   </script>
 </body>
 </html>
