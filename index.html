@@ -1,212 +1,768 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>i own a website, how wow very</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>User - Cassidy</title>
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+<!-- Pixel-style font (retro) -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
+<style>
+  :root{
+    --bg: #000000;
+    --green: #00ff00; /* bright retro green */
+    --dark-green: #008f00;
+  }
 
-    body {
-      background: url('https://files.catbox.moe/5cg4qw.gif') no-repeat center center fixed;
-      background-size: cover;
-      backdrop-filter: blur(6px);
-      color: #fff;
-      padding: 2rem;
-      position: relative;
-    }
+  html,body{
+    height:100%;
+    margin:0;
+    background:var(--bg);
+    color:var(--green);
+    font-family: 'Press Start 2P', "Courier New", monospace;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+    user-select: none;
+  }
 
-    .overlay {
-      background: rgba(0, 0, 0, 0.6);
-      padding: 2rem;
-      max-width: 800px;
-      margin: auto;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
-      opacity: 0;
-      transition: opacity 1s ease;
-    }
+  /* container */
+  .screen{
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+    background:var(--bg);
+  }
 
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
+  /* common retro text look */
+  .retro-text{
+    color:var(--green);
+    text-shadow:
+      0 0 0 var(--green),
+      1px 1px 0 var(--dark-green);
+    letter-spacing:2px;
+    line-height:1.1;
+    font-size:20px;
+    text-transform:uppercase;
+  }
 
-    p {
-      font-size: 1.2rem;
-      line-height: 1.8;
-      margin-bottom: 1rem;
-    }
+  .panel{
+    text-align:center;
+    transform: translateZ(0);
+  }
 
-    .corner-gif {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 120px;
-      height: auto;
-      opacity: 0.8;
-      filter: brightness(0.9) saturate(0.8);
-      image-rendering: auto;
-      animation: none;
-      z-index: 1000;
-      display: none;
-    }
+  button.retro-btn{
+    margin-top:24px;
+    background:transparent;
+    border:2px solid var(--green);
+    color:var(--green);
+    padding:12px 18px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:1px;
+    transition: filter .08s;
+  }
+  button.retro-btn:active{ filter:brightness(.7); }
 
-    .bottom-middle-icons {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 40px;
-      align-items: center;
-      z-index: 1000;
-      display: none;
-    }
+  /* Password screen layout */
+  .password-screen{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  input.pw{
+    margin-top:12px;
+    background:transparent;
+    border:2px solid var(--green);
+    color:var(--green);
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:12px;
+    outline:none;
+    width:220px;
+    text-align:center;
+  }
 
-    .icon-with-label {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: 'VT323', monospace;
-      font-size: 1.5rem;
-      color: white;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-      transition: transform 0.2s ease;
-    }
+  /* full-screen black overlay used for transitions */
+  .full-black{
+    position:absolute;
+    inset:0;
+    background:var(--bg);
+    z-index:50;
+    display:none;
+  }
 
-    .icon-with-label img {
-      width: 80px;
-      height: auto;
-      transition: transform 0.2s ease;
-      cursor: pointer;
-    }
+  /* welcome text (now with two lines) */
+  .welcome{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:60;
+    opacity:0;
+    pointer-events:none;
+    flex-direction:column;
+    gap:6px;
+  }
+  .welcome .big { font-size:36px; }
+  .welcome .small { font-size:20px; }
 
-    .icon-with-label img:hover {
-      transform: translateY(-6px);
-    }
+  /* fade-in animation (2s) */
+  .fade-in{
+    animation: welcomeFadeIn 2s forwards;
+  }
+  @keyframes welcomeFadeIn{
+    from{ opacity:0; transform: scale(1.02); filter: blur(2px); }
+    to  { opacity:1; transform: scale(1); filter: blur(0); }
+  }
 
-    .icon-with-label img:active {
-      transform: translateY(3px);
-    }
+  /* desktop */
+  .desktop{
+    position:absolute;
+    inset:0;
+    background:var(--bg);
+    z-index:10;
+    display:none;
+    flex-direction:column;
+  }
 
-    .intro-screen {
-      position: fixed;
-      inset: 0;
-      background: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      transition: transform 0.7s ease-out, opacity 1s ease;
-    }
+  /* desktop icons area */
+  .desktop-area{
+    position:absolute;
+    inset:0;
+    padding:12px;
+    box-sizing:border-box;
+  }
+  .desktop-icon{
+    width:84px;
+    text-align:center;
+    color:var(--green);
+    font-size:11px;
+    cursor:default;
+    display:inline-block;
+    margin:6px;
+    user-select:none;
+  }
+  .desktop-icon .icon-img{
+    width:64px;
+    height:64px;
+    display:block;
+    margin:0 auto 6px auto;
+    image-rendering: pixelated;
+    border:2px solid transparent;
+  }
+  .desktop-icon .label{
+    display:block;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+    overflow:hidden;
+  }
+  .desktop-icon.selected .icon-img{
+    outline:3px solid var(--green);
+    outline-offset:2px;
+    background:rgba(0,0,0,0.6);
+  }
+  .desktop-icon.selected .label{
+    background:var(--dark-green);
+    color:#000;
+    padding:2px 4px;
+    border-radius:2px;
+    display:inline-block;
+  }
 
-    .intro-text {
-      color: pink;
-      font-size: 2rem;
-      font-family: 'VT323', monospace;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
+  /* app window */
+  .app-window{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:520px;
+    max-width:92%;
+    height:320px;
+    background:var(--bg);
+    border:2px solid var(--green);
+    box-sizing:border-box;
+    z-index:200;
+    display:flex;
+    flex-direction:column;
+    visibility:hidden;
+    opacity:0;
+  }
+  .app-window.show{
+    visibility:visible;
+    opacity:1;
+  }
 
-    .intro-text:hover {
-      transform: translateY(-5px);
-    }
+  .titlebar{
+    height:34px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    border-bottom:2px solid var(--green);
+    box-sizing:border-box;
+  }
+  .title{
+    color:var(--green);
+    font-size:12px;
+    letter-spacing:1px;
+  }
+  .window-controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .ctl-btn{
+    width:28px;
+    height:22px;
+    border:2px solid var(--green);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    background:transparent;
+    color:var(--green);
+    font-size:12px;
+    line-height:1;
+  }
+  .ctl-btn:active{ filter:brightness(.8); }
 
-    .intro-text:active {
-      transform: translateY(3px);
-    }
-  </style>
+  .window-body{
+    padding:18px;
+    flex:1;
+    color:var(--green);
+    overflow:auto;
+    font-size:12px;
+  }
+
+  /* taskbar */
+  .taskbar{
+    position:absolute;
+    left:0; right:0;
+    bottom:0;
+    height:40px;
+    background:transparent;
+    border-top:2px solid var(--green);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    box-sizing:border-box;
+    z-index:100;
+  }
+  .taskbar-left{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding-left:6px;
+  }
+  .taskbar-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding-right:6px;
+  }
+
+  .taskbar-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 8px;
+    min-width:36px;
+    border:2px solid transparent;
+    cursor:pointer;
+    background:transparent;
+    color:var(--green);
+    font-size:11px;
+  }
+  .taskbar-btn.active{
+    border:2px solid var(--green);
+    background:var(--dark-green);
+    color:#000;
+  }
+  .taskbar-btn img { width:20px; height:20px; image-rendering: pixelated; }
+
+  .clock{
+    color:var(--green);
+    font-size:12px;
+    letter-spacing:1px;
+  }
+
+  .pixelate{
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
+  }
+
+  /* accessibility: focus */
+  button:focus, input:focus {
+    outline: 2px dashed var(--dark-green);
+    outline-offset:4px;
+  }
+
+  /* responsiveness */
+  @media (min-width:900px){
+    .retro-text{ font-size:22px; letter-spacing:3px; }
+  }
+</style>
 </head>
 <body>
-  <div class="intro-screen" id="intro">
-    <div class="intro-text" id="introText">Click to Continue</div>
-  </div>
+  <div class="screen" id="screen">
 
-  <div class="overlay" id="main">
-    <h1>HIIIII</h1>
-    <p>
-      I do youtube sometimes. I play roblox, PUBG, and l4d2.
-    </p>
-    <p>
-      I LOVE "Supermassive Black Hole" by Muse. I LOVE the artist "Artemas".
-    </p>
-    <p>
-      I use a mix of tools like Blender, Davinci Resolve, and Adobe Flash.
-    </p>
-    <p>
-      I LOVE fnaf/bendy music/games. And I LOVE this show called "Supernatural"
-    </p>
-    <p>
-      This site is just a site where I just put all my socials. :p
-    </p>
-    <p>
-      (Wow this guy is so cool he coded a website!) I was rushing making this. (it sucks)
-    </p>
-  </div>
-
-  <img class="corner-gif" id="gif" src="https://i.imgur.com/FAXEJ1D.gif" alt="corner gif" />
-
-  <div class="bottom-middle-icons" id="icons">
-    <div class="icon-with-label">
-      <span>Bloosmoy</span>
-      <a href="https://www.youtube.com/@Bloosmoy" target="_blank">
-        <img src="https://files.catbox.moe/3cy2c6.png" alt="Bloosmoy Icon" />
-      </a>
+    <!-- Initial splash showing Cassidy and Start button -->
+    <div class="panel" id="splash">
+      <div class="retro-text pixelate" style="font-size:28px">cassidy</div>
+      <button class="retro-btn pixelate" id="startBtn">Start System</button>
+      <!-- removed the © retro boot line as requested -->
     </div>
-    <div class="icon-with-label">
-      <span>Bloom791</span>
-      <a href="https://www.youtube.com/@Bloom791" target="_blank">
-        <img src="https://files.catbox.moe/3cy2c6.png" alt="Bloom791 Icon" />
-      </a>
+
+    <!-- Password screen (hidden initially) -->
+    <div class="panel password-screen" id="passwordPanel" style="display:none;">
+      <div class="retro-text pixelate small">password</div>
+      <input class="pw pixelate" id="pwInput" type="password" autocomplete="off" inputmode="text" />
+      <div style="display:flex; gap:12px; margin-top:12px;">
+        <button class="retro-btn pixelate" id="submitPw">Submit</button>
+        <button class="retro-btn pixelate" id="backBtn">Back</button>
+      </div>
+      <div id="pwMsg" class="small" style="margin-top:10px; color:var(--green); visibility:hidden;"> </div>
     </div>
+
+    <!-- black overlay for the 1s blackout -->
+    <div class="full-black pixelate" id="blackOverlay" style="display:none;"></div>
+
+    <!-- Welcome text (now includes Cassidy under Welcome) -->
+    <div class="welcome pixelate retro-text" id="welcomeText" style="display:none;">
+      <div class="big">welcome</div>
+      <div class="small">cassidy</div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="desktop" id="desktop">
+      <div class="desktop-area" id="desktopArea">
+        <!-- single file icon in top-left -->
+        <div class="desktop-icon" id="fileIcon" tabindex="0" data-filename="Entry - 1.txt">
+          <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
+          <span class="label">Entry - 1</span>
+        </div>
+      </div>
+
+      <!-- app window (hidden until opened) -->
+      <div class="app-window" id="appWindow" role="dialog" aria-hidden="true">
+        <div class="titlebar">
+          <div class="title">Entry - 1 - Cassidy</div>
+          <div class="window-controls">
+            <div class="ctl-btn" id="minBtn" title="Minimize">—</div>
+            <div class="ctl-btn" id="closeBtn" title="Close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="font-size:12px">Hi. I'm Bloom791. I'll add more to this arg soon :p</div>
+        </div>
+      </div>
+
+      <div class="taskbar pixelate" role="toolbar" id="taskbar">
+        <div class="taskbar-left" id="taskbarLeft">
+          <!-- dynamic app buttons will appear here -->
+        </div>
+        <div class="taskbar-right">
+          <div class="clock" id="clock">00:00:00</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <script>
-    const audioOptions = [
-      "https://files.catbox.moe/pcmu8p.mp3",
-      "https://files.catbox.moe/bz9rni.mp3"
-    ];
-    const selectedAudio = audioOptions[Math.floor(Math.random() * audioOptions.length)];
-    const audio = new Audio(selectedAudio);
-    audio.loop = true;
-    audio.volume = 0;
+<script>
+  // Elements
+  const startBtn = document.getElementById('startBtn');
+  const splash = document.getElementById('splash');
+  const passwordPanel = document.getElementById('passwordPanel');
+  const submitPw = document.getElementById('submitPw');
+  const backBtn = document.getElementById('backBtn');
+  const pwInput = document.getElementById('pwInput');
+  const pwMsg = document.getElementById('pwMsg');
+  const blackOverlay = document.getElementById('blackOverlay');
+  const welcomeText = document.getElementById('welcomeText');
+  const desktop = document.getElementById('desktop');
+  const clockEl = document.getElementById('clock');
 
-    document.getElementById("introText").addEventListener("click", () => {
-      const intro = document.getElementById("intro");
-      intro.style.transition = "transform 0.3s ease-out, opacity 1s ease";
-      intro.style.transform = "scale(2)";
-      intro.style.opacity = 0;
+  // Desktop app elements
+  const desktopArea = document.getElementById('desktopArea');
+  const fileIcon = document.getElementById('fileIcon');
+  const appWindow = document.getElementById('appWindow');
+  const minBtn = document.getElementById('minBtn');
+  const closeBtn = document.getElementById('closeBtn');
+  const taskbarLeft = document.getElementById('taskbarLeft');
 
+  // Hard-coded password per request:
+  const CORRECT = "pass";
+
+  // Audio (plays when password screen opens; and when Welcome has fully faded in)
+  const pwSound = new Audio('https://files.catbox.moe/t8ious.wav');
+  const welcomeSound = new Audio('https://files.catbox.moe/s23l8n.wav');
+  pwSound.preload = 'auto';
+  welcomeSound.preload = 'auto';
+
+  // Start -> show password
+  startBtn.addEventListener('click', () => {
+    splash.style.display = 'none';
+    passwordPanel.style.display = 'flex';
+    pwInput.value = '';
+    pwInput.focus();
+
+    // play password sound once when the password screen appears
+    try {
+      pwSound.currentTime = 0;
+      pwSound.play().catch(()=>{});
+    } catch (e) { /* ignore */ }
+  });
+
+  backBtn.addEventListener('click', () => {
+    passwordPanel.style.display = 'none';
+    splash.style.display = 'block';
+  });
+
+  // Submit password logic
+  submitPw.addEventListener('click', tryPassword);
+  pwInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryPassword();
+  });
+
+  function showBlackOverlay() {
+    blackOverlay.style.display = 'block';
+  }
+  function hideBlackOverlay() {
+    blackOverlay.style.display = 'none';
+  }
+
+  function tryPassword(){
+    const val = pwInput.value || '';
+    if (val === CORRECT){
+      pwMsg.style.visibility = 'hidden';
+
+      // 1. hide password screen -> full black for 1s
+      passwordPanel.style.display = 'none';
+      showBlackOverlay();
+
+      // wait 1s (1000ms), then show welcome with 2s fade-in
       setTimeout(() => {
-        intro.style.display = "none";
-        document.getElementById("main").style.opacity = 1;
-        document.getElementById("gif").style.display = "block";
-        document.getElementById("icons").style.display = "flex";
-        audio.play();
+        // show welcome overlay
+        welcomeText.style.display = 'flex';
+        welcomeText.classList.remove('fade-in');
+        // trigger reflow so animation restarts properly
+        void welcomeText.offsetWidth;
+        welcomeText.classList.add('fade-in');
 
-        const fadeIn = setInterval(() => {
-          if (audio.volume < 0.3) {
-            audio.volume += 0.01;
-          } else {
-            clearInterval(fadeIn);
-          }
-        }, 100);
+        // hide black overlay now (welcome will fade in on top)
+        hideBlackOverlay();
+
+        // after the 2s fade-in completes, wait 1s while fully visible, then go to desktop
+        const fadeDuration = 2000;
+        setTimeout(() => {
+          // play welcome audio when fully faded in
+          try {
+            welcomeSound.currentTime = 0;
+            welcomeSound.play().catch(()=>{});
+          } catch (e) { /* ignore */ }
+
+          // after fully faded in, wait 1s
+          setTimeout(() => {
+            // transition to black briefly then desktop
+            showBlackOverlay();
+            // small delay so the user sees the cut (instant black) - 200ms
+            setTimeout(() => {
+              // hide welcome
+              welcomeText.style.display = 'none';
+              hideBlackOverlay();
+              // show desktop
+              desktop.style.display = 'block';
+              // start clock
+              updateClock();
+              setInterval(updateClock, 1000);
+            }, 200);
+          }, 1000);
+        }, fadeDuration);
       }, 1000);
+    } else {
+      // wrong password feedback (in green but subtle)
+      pwMsg.textContent = 'incorrect';
+      pwMsg.style.visibility = 'visible';
+      // quick flash for emphasis
+      pwMsg.style.opacity = '1';
+      setTimeout(()=>{ pwMsg.style.opacity = '0.6'; }, 600);
+    }
+  }
+
+  // Clock/date formatting: show time and date like "11:03:12 11/19/2025"
+  function updateClock(){
+    const now = new Date();
+    const p = (n) => String(n).padStart(2,'0');
+    const hh = p(now.getHours());
+    const mm = p(now.getMinutes());
+    const ss = p(now.getSeconds());
+    const month = p(now.getMonth()+1);
+    const day = p(now.getDate());
+    const year = now.getFullYear();
+    clockEl.textContent = `${hh}:${mm}:${ss}  ${month}/${day}/${year}`;
+  }
+
+  // accessibility: allow focusing Start with keyboard
+  startBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') startBtn.click();
+  });
+
+  // Focus start button on load
+  startBtn.focus();
+
+  // ---------------------------
+  // Desktop icon behavior
+  // ---------------------------
+  let lastClickTime = 0;
+  let clickTimeout = null;
+  const DOUBLE_CLICK_MS = 350;
+
+  function selectIcon(el) {
+    // clear other selections
+    document.querySelectorAll('.desktop-icon.selected').forEach(node => node.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  function deselectAllIcons() {
+    document.querySelectorAll('.desktop-icon.selected').forEach(node => node.classList.remove('selected'));
+  }
+
+  fileIcon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const now = Date.now();
+    const delta = now - lastClickTime;
+    lastClickTime = now;
+
+    // handle double click
+    if (delta < DOUBLE_CLICK_MS) {
+      // double-click detected
+      openApp();
+      clearTimeout(clickTimeout);
+      clickTimeout = null;
+      return;
+    }
+
+    // single click -> select after small delay unless double click occurs
+    selectIcon(fileIcon);
+    if (clickTimeout) clearTimeout(clickTimeout);
+    clickTimeout = setTimeout(() => {
+      // single-click confirm (we already selected visually)
+      clickTimeout = null;
+    }, DOUBLE_CLICK_MS + 10);
+  });
+
+  // allow keyboard "Enter" to open when focused
+  fileIcon.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') openApp();
+  });
+
+  // clicking on desktop background deselects icons
+  desktopArea.addEventListener('click', (e) => {
+    deselectAllIcons();
+  });
+
+  // ---------------------------
+  // App open / taskbar logic
+  // ---------------------------
+  let appOpen = false;
+  let appMinimized = false;
+  let taskbarBtn = null;
+
+  function createTaskbarButton() {
+    if (taskbarBtn) return taskbarBtn;
+    const btn = document.createElement('button');
+    btn.className = 'taskbar-btn pixelate active';
+    btn.title = 'Entry - 1';
+    // small icon image
+    const img = document.createElement('img');
+    img.src = 'https://files.catbox.moe/tcx2vu.png';
+    img.alt = 'app';
+    btn.appendChild(img);
+    const label = document.createElement('span');
+    label.textContent = 'Entry - 1';
+    label.style.fontSize = '10px';
+    btn.appendChild(label);
+
+    btn.addEventListener('click', () => {
+      // toggle minimize/restore
+      if (!appOpen) return;
+      if (appMinimized) {
+        restoreApp();
+      } else {
+        minimizeApp();
+      }
     });
-  </script>
+
+    taskbarLeft.appendChild(btn);
+    taskbarBtn = btn;
+    return btn;
+  }
+
+  function removeTaskbarButton() {
+    if (!taskbarBtn) return;
+    taskbarBtn.remove();
+    taskbarBtn = null;
+  }
+
+  function openApp() {
+    if (!appOpen) {
+      appOpen = true;
+      appMinimized = false;
+      // create taskbar btn
+      createTaskbarButton();
+    }
+    // show window
+    appWindow.classList.add('show');
+    appWindow.style.visibility = 'visible';
+    appWindow.style.opacity = '1';
+    appWindow.setAttribute('aria-hidden','false');
+    if (taskbarBtn) {
+      taskbarBtn.classList.add('active');
+    }
+    // ensure selected icon remains selected
+    selectIcon(fileIcon);
+  }
+
+  function minimizeApp() {
+    if (!appOpen) return;
+    appMinimized = true;
+    appWindow.style.visibility = 'hidden';
+    appWindow.style.opacity = '0';
+    appWindow.setAttribute('aria-hidden','true');
+    if (taskbarBtn) taskbarBtn.classList.remove('active');
+  }
+
+  function restoreApp() {
+    if (!appOpen) return;
+    appMinimized = false;
+    appWindow.style.visibility = 'visible';
+    appWindow.style.opacity = '1';
+    appWindow.setAttribute('aria-hidden','false');
+    if (taskbarBtn) taskbarBtn.classList.add('active');
+  }
+
+  function closeApp() {
+    if (!appOpen) return;
+    appOpen = false;
+    appMinimized = false;
+    appWindow.style.visibility = 'hidden';
+    appWindow.style.opacity = '0';
+    appWindow.setAttribute('aria-hidden','true');
+    removeTaskbarButton();
+    deselectAllIcons();
+  }
+
+  // wire up window controls
+  minBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    minimizeApp();
+  });
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeApp();
+  });
+
+  // ensure clicking inside window doesn't deselect icon
+  appWindow.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // clicking taskbar area or clock doesn't deselect icons
+  document.getElementById('taskbar').addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // clicking outside any icon or window should deselect
+  document.addEventListener('click', (e) => {
+    // if clicked outside desktop area or window, deselect
+    const isClickOnIcon = e.target.closest('.desktop-icon');
+    const isClickOnWindow = e.target.closest('.app-window');
+    if (!isClickOnIcon && !isClickOnWindow) {
+      deselectAllIcons();
+    }
+  });
+
+  // Prevent accidental text selection on double clicks
+  document.addEventListener('selectstart', (e) => { e.preventDefault(); });
+
+  // ---------------------------
+  // Utility: bring welcome to show "welcome cassidy" a bit more retro (already handled)
+  // ---------------------------
+
+  // ---------------------------
+  // Draggable window (constrained to viewport)
+  // ---------------------------
+  const titlebar = appWindow.querySelector('.titlebar');
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  function onPointerDown(e) {
+    // ignore right/middle buttons
+    if (typeof e.button === 'number' && e.button !== 0) return;
+    // don't start drag if clicking a control button
+    if (e.target.closest('.ctl-btn')) return;
+    // only drag when window is visible
+    const styleVis = window.getComputedStyle(appWindow).visibility;
+    if (styleVis === 'hidden') return;
+
+    const rect = appWindow.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+
+    // switch to explicit pixel positioning (remove centering transform)
+    appWindow.style.left = rect.left + 'px';
+    appWindow.style.top = rect.top + 'px';
+    appWindow.style.transform = 'none';
+
+    // capture pointer for smoother dragging
+    try { appWindow.setPointerCapture(e.pointerId); } catch (err) {}
+    isDragging = true;
+    e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    const rectW = appWindow.offsetWidth;
+    const rectH = appWindow.offsetHeight;
+    let newLeft = e.clientX - dragOffsetX;
+    let newTop = e.clientY - dragOffsetY;
+
+    // clamp so window can't be dragged off-screen
+    const minLeft = 0;
+    const maxLeft = Math.max(0, window.innerWidth - rectW);
+    const minTop = 0;
+    // keep above taskbar (approx 40px height)
+    const maxTop = Math.max(0, window.innerHeight - rectH - 40);
+
+    if (newLeft < minLeft) newLeft = minLeft;
+    if (newLeft > maxLeft) newLeft = maxLeft;
+    if (newTop < minTop) newTop = minTop;
+    if (newTop > maxTop) newTop = maxTop;
+
+    appWindow.style.left = newLeft + 'px';
+    appWindow.style.top = newTop + 'px';
+  }
+
+  function onPointerUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    try { appWindow.releasePointerCapture(e.pointerId); } catch (err) {}
+  }
+
+  titlebar.addEventListener('pointerdown', onPointerDown);
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
+
+</script>
 </body>
 </html>
