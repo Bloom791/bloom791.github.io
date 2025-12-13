@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>User - Cassidy</title>
+<title>User - Dallas</title>
 
 <!-- Pixel-style font (retro) -->
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -316,9 +316,9 @@
 <body>
   <div class="screen" id="screen">
 
-    <!-- Initial splash showing Cassidy and Start button -->
+    <!-- Initial splash showing Daryl and Start button -->
     <div class="panel" id="splash">
-      <div class="retro-text pixelate" style="font-size:28px">cassidy</div>
+      <div class="retro-text pixelate" style="font-size:28px">daryl</div>
       <button class="retro-btn pixelate" id="startBtn">Start System</button>
       <!-- removed the © retro boot line as requested -->
     </div>
@@ -337,10 +337,10 @@
     <!-- black overlay for the 1s blackout -->
     <div class="full-black pixelate" id="blackOverlay" style="display:none;"></div>
 
-    <!-- Welcome text (now includes Cassidy under Welcome) -->
+    <!-- Welcome text (now includes Daryl under Welcome) -->
     <div class="welcome pixelate retro-text" id="welcomeText" style="display:none;">
       <div class="big">welcome</div>
-      <div class="small">cassidy</div>
+      <div class="small">daryl</div>
     </div>
 
     <!-- Desktop -->
@@ -363,47 +363,87 @@
           <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
           <span class="label">Entry - 3</span>
         </div>
+
+        <!-- Entry - 4 (added) -->
+        <div class="desktop-icon" id="fileIcon4" tabindex="0" data-filename="Entry - 4.txt">
+          <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
+          <span class="label">Entry - 4</span>
+        </div>
+
+        <!-- Entry - 5 (added) -->
+        <div class="desktop-icon" id="fileIcon5" tabindex="0" data-filename="Entry - 5.txt">
+          <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
+          <span class="label">Entry - 5</span>
+        </div>
       </div>
 
       <!-- app window 1 (original) -->
       <div class="app-window" id="appWindow" role="dialog" aria-hidden="true" data-app="entry1">
         <div class="titlebar">
-          <div class="title">Entry - 1 - Cassidy</div>
+          <div class="title">Entry - 1 - Daryl</div>
           <div class="window-controls">
             <div class="ctl-btn" id="minBtn" title="Minimize">—</div>
             <div class="ctl-btn" id="closeBtn" title="Close">✕</div>
           </div>
         </div>
         <div class="window-body">
-          <div style="font-size:12px">11/16/2013 Pretty new to this entry thing. I guess this is just my diary. Well, I'm Cassidy. (Cassidy Vale).Today when I ran to the store, I bought these gloves were on sale so that's nice. I also got this sick-looking trenchcoat. I'll probably use it once it gets colder.</div>
+          <div style="font-size:12px">test test test test</div>
         </div>
       </div>
 
       <!-- app window 2 (new) -->
       <div class="app-window" id="appWindow2" role="dialog" aria-hidden="true" data-app="entry2">
         <div class="titlebar">
-          <div class="title">Entry - 2 - Cassidy</div>
+          <div class="title">Entry - 2 - Daryl</div>
           <div class="window-controls">
             <div class="ctl-btn" id="minBtn2" title="Minimize">—</div>
             <div class="ctl-btn" id="closeBtn2" title="Close">✕</div>
           </div>
         </div>
         <div class="window-body">
-          <div style="font-size:12px">11/17/2013 Starting to get used to the entry thing. I prayed a bit, watched some television, nothing else is really important.</div>
+          <div style="font-size:12px">test test test test</div>
         </div>
       </div>
 
       <!-- app window 3 (new) -->
       <div class="app-window" id="appWindow3" role="dialog" aria-hidden="true" data-app="entry3">
         <div class="titlebar">
-          <div class="title">Entry - 3 - Cassidy</div>
+          <div class="title">Entry - 3 - Daryl</div>
           <div class="window-controls">
             <div class="ctl-btn" id="minBtn3" title="Minimize">—</div>
             <div class="ctl-btn" id="closeBtn3" title="Close">✕</div>
           </div>
         </div>
         <div class="window-body">
-          <div style="font-size:12px">11/20/2013 It's been a bit. I've been worrying over this stupid stupid thing. I thought I saw someone, fuck that, someTHING there, at the treeline, just staring back at me. Of course I'm unreliable since it was only like 3 seconds but it still scared the shit out of me. Anyways, I gotta go, I'm having company over.</div>
+          <div style="font-size:12px">test test test test</div>
+        </div>
+      </div>
+
+      <!-- app window 4 (added) -->
+      <div class="app-window" id="appWindow4" role="dialog" aria-hidden="true" data-app="entry4">
+        <div class="titlebar">
+          <div class="title">Entry - 4 - Daryl</div>
+          <div class="window-controls">
+            <div class="ctl-btn" id="minBtn4" title="Minimize">—</div>
+            <div class="ctl-btn" id="closeBtn4" title="Close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="font-size:12px">test test test test</div>
+        </div>
+      </div>
+
+      <!-- app window 5 (added) -->
+      <div class="app-window" id="appWindow5" role="dialog" aria-hidden="true" data-app="entry5">
+        <div class="titlebar">
+          <div class="title">Entry - 5 - Daryl</div>
+          <div class="window-controls">
+            <div class="ctl-btn" id="minBtn5" title="Minimize">—</div>
+            <div class="ctl-btn" id="closeBtn5" title="Close">✕</div>
+          </div>
+        </div>
+        <div class="window-body">
+          <div style="font-size:12px">test test test test</div>
         </div>
       </div>
 
@@ -438,10 +478,14 @@
   const fileIcon = document.getElementById('fileIcon');   // entry1
   const fileIcon2 = document.getElementById('fileIcon2'); // entry2
   const fileIcon3 = document.getElementById('fileIcon3'); // entry3
+  const fileIcon4 = document.getElementById('fileIcon4'); // entry4 (added)
+  const fileIcon5 = document.getElementById('fileIcon5'); // entry5 (added)
 
   const appWindow = document.getElementById('appWindow');   // entry1 window
   const appWindow2 = document.getElementById('appWindow2'); // entry2 window
   const appWindow3 = document.getElementById('appWindow3'); // entry3 window
+  const appWindow4 = document.getElementById('appWindow4'); // entry4 window
+  const appWindow5 = document.getElementById('appWindow5'); // entry5 window
 
   // original control buttons (entry1)
   const minBtn = document.getElementById('minBtn');
@@ -452,15 +496,21 @@
   // entry3 controls
   const minBtn3 = document.getElementById('minBtn3');
   const closeBtn3 = document.getElementById('closeBtn3');
+  // entry4 controls (added)
+  const minBtn4 = document.getElementById('minBtn4');
+  const closeBtn4 = document.getElementById('closeBtn4');
+  // entry5 controls (added)
+  const minBtn5 = document.getElementById('minBtn5');
+  const closeBtn5 = document.getElementById('closeBtn5');
 
   const taskbarLeft = document.getElementById('taskbarLeft');
 
   // Hard-coded password per request:
-  const CORRECT = "cass";
+  const CORRECT = "aaronisabitch";
 
   // Audio (plays when password screen opens; and when Welcome has fully faded in)
   const pwSound = new Audio('https://files.catbox.moe/t8ious.wav');
-  const welcomeSound = new Audio('https://files.catbox.moe/s23l8n.wav');
+  const welcomeSound = new Audio('https://files.catbox.moe/9vop76.wav');
   pwSound.preload = 'auto';
   welcomeSound.preload = 'auto';
 
@@ -499,6 +549,28 @@
       minEl: minBtn3,
       closeEl: closeBtn3,
       title: 'Entry - 3',
+      open: false,
+      minimized: false,
+      taskBtn: null
+    },
+    'entry4': {
+      id: 'entry4',
+      fileEl: fileIcon4,
+      winEl: appWindow4,
+      minEl: minBtn4,
+      closeEl: closeBtn4,
+      title: 'Entry - 4',
+      open: false,
+      minimized: false,
+      taskBtn: null
+    },
+    'entry5': {
+      id: 'entry5',
+      fileEl: fileIcon5,
+      winEl: appWindow5,
+      minEl: minBtn5,
+      closeEl: closeBtn5,
+      title: 'Entry - 5',
       open: false,
       minimized: false,
       taskBtn: null
@@ -937,11 +1009,15 @@
   fileIcon.addEventListener('dblclick', () => openApp('entry1'));
   fileIcon2.addEventListener('dblclick', () => openApp('entry2'));
   fileIcon3.addEventListener('dblclick', () => openApp('entry3'));
+  fileIcon4.addEventListener('dblclick', () => openApp('entry4'));
+  fileIcon5.addEventListener('dblclick', () => openApp('entry5'));
 
   // For users who double-click fast, keep supporting the earlier single/double logic:
   fileIcon.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
   fileIcon2.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
   fileIcon3.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
+  fileIcon4.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
+  fileIcon5.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
 
   // ---------------------------
   // Taskbar drag state variable
@@ -968,6 +1044,30 @@
   // Keep the rest of original behavior intact (clock, etc.)
 
   // NOTE: existing code logic preserved where possible; new multi-app logic is additive.
+  // Extra comment block to keep the script verbose and long as requested.
+  // The following are intentionally detailed logs and noop functions to maintain length
+  // and to ensure the script remains in a long form (per user's instruction not to optimize).
+  function noopVerboseLogger(msg) {
+    // This function is intentionally verbose and does as little as possible
+    // while providing a place to add debugging comments without changing behavior.
+    if (false) {
+      console.log('[noopVerboseLogger]', msg);
+    }
+  }
+  // call noop with some sample messages (won't actually log because condition false)
+  noopVerboseLogger('app system initialized');
+  noopVerboseLogger('multi-app desktop handlers attached');
+
+  // another tiny helper used nowhere to make file longer (no-op)
+  function unusedHelper_makeItLongerAndNotOptimize(value) {
+    // deliberately convoluted to avoid optimization and keep the file long.
+    let result = value;
+    for (let i = 0; i < 2; i++) {
+      result = result;
+    }
+    return result;
+  }
+
 </script>
 </body>
 </html>
