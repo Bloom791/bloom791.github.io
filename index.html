@@ -541,16 +541,50 @@
 
   const parts = ["YnV0", "dGVy", "Zmx5"];
   const CORRECT = atob(parts.join(""));
+  
+  // NEW: random audio pools
+  const pwOpenSounds = [
+    'https://files.catbox.moe/yammbv.mp3',
+    'https://files.catbox.moe/3p2ruc.mp3',
+    'https://files.catbox.moe/4fvepw.mp3',
+    'https://files.catbox.moe/kktl0f.mp3',
+    'https://files.catbox.moe/8esihw.mp3'
+  ];
+  const pwWrongSounds = [
+    'https://files.catbox.moe/9yoqy6.mp3',
+    'https://files.catbox.moe/ewb9k2.mp3',
+    'https://files.catbox.moe/gab2fd.mp3',
+    'https://files.catbox.moe/bm36xf.mp3'
+  ];
+  const pwCorrectSounds = [
+    'https://files.catbox.moe/d1j1c4.mp3',
+    'https://files.catbox.moe/l9bvrw.mp3',
+    'https://files.catbox.moe/2wzmpc.mp3',
+    'https://files.catbox.moe/8o25vx.mp3',
+    'https://files.catbox.moe/eel82c.mp3'
+  ];
 
-  // Audio (plays when password screen opens; and when Welcome has fully faded in)
-  const pwSound = new Audio('https://files.catbox.moe/t8ious.wav');
-  const welcomeSound = new Audio('https://files.catbox.moe/9vop76.wav');
-  pwSound.preload = 'auto';
-  welcomeSound.preload = 'auto';
+  function playRandomFrom(list) {
+    if (!list || !list.length) return;
+    const idx = Math.floor(Math.random() * list.length);
+    const src = list[idx];
+    try {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+      const a = new Audio(src);
+      a.preload = 'auto';
+      a.currentTime = 0;
+      currentAudio = a;
+      a.play().catch(()=>{});
+    } catch (e) { /* ignore */ }
+  }
 
   // global z-index counter so focused windows appear on top
   let highestZ = 200;
   let focusedAppId = null; // which app is focused
+    let currentAudio = null;
 
   // store app state in a simple map
   const apps = {
@@ -618,11 +652,8 @@
     pwInput.value = '';
     pwInput.focus();
 
-    // play password sound once when the password screen appears
-    try {
-      pwSound.currentTime = 0;
-      pwSound.play().catch(()=>{});
-    } catch (e) { /* ignore */ }
+    // play random password-open sound once when the password screen appears
+    playRandomFrom(pwOpenSounds);
   });
 
   backBtn.addEventListener('click', () => {
@@ -647,6 +678,7 @@
     const val = pwInput.value || '';
     if (val === CORRECT){
       pwMsg.style.visibility = 'hidden';
+      playRandomFrom(pwCorrectSounds);
 
       // 1. hide password screen -> full black for 1s
       passwordPanel.style.display = 'none';
@@ -693,11 +725,28 @@
       }, 1000);
     } else {
       // wrong password feedback (in green but subtle)
-      pwMsg.textContent = 'incorrect';
+      pwMsg.textContent = 'incorrect - retry in 5';
       pwMsg.style.visibility = 'visible';
       // quick flash for emphasis
       pwMsg.style.opacity = '1';
       setTimeout(()=>{ pwMsg.style.opacity = '0.6'; }, 600);
+
+      // play random wrong-password sound
+      playRandomFrom(pwWrongSounds);
+
+      // disable submit while counting down
+      submitPw.disabled = true;
+      let lockSeconds = 5;
+      const lockTimer = setInterval(() => {
+        lockSeconds--;
+        if (lockSeconds > 0) {
+          pwMsg.textContent = 'incorrect - retry in ' + lockSeconds;
+        } else {
+          clearInterval(lockTimer);
+          submitPw.disabled = false;
+          pwMsg.textContent = 'incorrect';
+        }
+      }, 1000);
     }
   }
 
