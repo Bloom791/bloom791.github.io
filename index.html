@@ -68,6 +68,7 @@
     letter-spacing:1px;
     transition: filter .08s;
   }
+
   button.retro-btn:active{ filter:brightness(.7); }
 
   /* Password screen layout */
@@ -76,6 +77,7 @@
     flex-direction:column;
     align-items:center;
   }
+
   input.pw{
     margin-top:12px;
     background:transparent;
@@ -111,6 +113,7 @@
     flex-direction:column;
     gap:6px;
   }
+
   .welcome .big { font-size:36px; }
   .welcome .small { font-size:20px; }
 
@@ -118,6 +121,7 @@
   .fade-in{
     animation: welcomeFadeIn 2s forwards;
   }
+
   @keyframes welcomeFadeIn{
     from{ opacity:0; transform: scale(1.02); filter: blur(2px); }
     to  { opacity:1; transform: scale(1); filter: blur(0); }
@@ -140,6 +144,7 @@
     padding:12px;
     box-sizing:border-box;
   }
+
   .desktop-icon{
     width:84px;
     text-align:center;
@@ -150,6 +155,7 @@
     margin:6px;
     user-select:none;
   }
+
   .desktop-icon .icon-img{
     width:64px;
     height:64px;
@@ -158,23 +164,56 @@
     image-rendering: pixelated;
     border:2px solid transparent;
   }
+
   .desktop-icon .label{
     display:block;
     white-space:nowrap;
     text-overflow:ellipsis;
     overflow:hidden;
   }
+
   .desktop-icon.selected .icon-img{
     outline:3px solid var(--green);
     outline-offset:2px;
     background:rgba(0,0,0,0.6);
   }
+
   .desktop-icon.selected .label{
     background:var(--dark-green);
     color:#000;
     padding:2px 4px;
     border-radius:2px;
     display:inline-block;
+  }
+
+  /* Project Judas desktop icon */
+  .judas-icon-img{
+    width:64px;
+    height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+    margin:0 auto 6px auto;
+    border:2px solid var(--green);
+    background:#001900;
+    color:var(--green);
+    font-family:'Press Start 2P', monospace;
+    font-size:28px;
+    text-shadow:0 0 8px var(--green);
+    box-shadow:inset 0 0 12px rgba(0,255,0,0.18);
+    transition:background .15s, box-shadow .15s;
+  }
+
+  .desktop-icon:hover .judas-icon-img{
+    background:#003000;
+    box-shadow:inset 0 0 16px rgba(0,255,0,0.3), 0 0 8px rgba(0,255,0,0.2);
+  }
+
+  .desktop-icon.selected .judas-icon-img{
+    outline:3px solid var(--green);
+    outline-offset:2px;
+    background:#004000;
   }
 
   /* app window */
@@ -195,6 +234,7 @@
     visibility:hidden;
     opacity:0;
   }
+
   .app-window.show{
     visibility:visible;
     opacity:1;
@@ -210,16 +250,19 @@
     box-sizing:border-box;
     cursor:grab;
   }
+
   .title{
     color:var(--green);
     font-size:12px;
     letter-spacing:1px;
   }
+
   .window-controls{
     display:flex;
     gap:8px;
     align-items:center;
   }
+
   .ctl-btn{
     width:28px;
     height:22px;
@@ -233,6 +276,7 @@
     font-size:12px;
     line-height:1;
   }
+
   .ctl-btn:active{ filter:brightness(.8); }
 
   .window-body{
@@ -258,12 +302,14 @@
     box-sizing:border-box;
     z-index:100;
   }
+
   .taskbar-left{
     display:flex;
     align-items:center;
     gap:6px;
     padding-left:6px;
   }
+
   .taskbar-right{
     display:flex;
     align-items:center;
@@ -283,12 +329,18 @@
     color:var(--green);
     font-size:11px;
   }
+
   .taskbar-btn.active{
     border:2px solid var(--green);
     background:var(--dark-green);
     color:#000;
   }
-  .taskbar-btn img { width:20px; height:20px; image-rendering: pixelated; }
+
+  .taskbar-btn img {
+    width:20px;
+    height:20px;
+    image-rendering: pixelated;
+  }
 
   .clock{
     color:var(--green);
@@ -313,12 +365,13 @@
   }
 </style>
 </head>
+
 <body>
   <div class="screen" id="screen">
 
     <div class="panel" id="splash">
       <div class="retro-text pixelate" style="font-size:28px">The Bloom791</div>
-      <div class="retro-text pixelate" style="font-size:23.px">Archives</div>
+      <div class="retro-text pixelate" style="font-size:23px">Archives</div>
       <button class="retro-btn pixelate" id="startBtn">Start System</button>
     </div>
 
@@ -326,11 +379,13 @@
     <div class="panel password-screen" id="passwordPanel" style="display:none;">
       <div class="retro-text pixelate small">password</div>
       <input class="pw pixelate" id="pwInput" type="password" autocomplete="off" inputmode="text" />
+
       <div style="display:flex; gap:12px; margin-top:12px;">
         <button class="retro-btn pixelate" id="submitPw">Submit</button>
         <button class="retro-btn pixelate" id="backBtn">Back</button>
       </div>
-      <div id="pwMsg" class="small" style="margin-top:10px; color:var(--green); visibility:hidden;"> </div>
+
+      <div id="pwMsg" class="small" style="margin-top:10px; color:var(--green); visibility:hidden;"></div>
     </div>
 
     <!-- black overlay for the 1s blackout -->
@@ -343,7 +398,9 @@
 
     <!-- Desktop -->
     <div class="desktop" id="desktop">
+
       <div class="desktop-area" id="desktopArea">
+
         <div class="desktop-icon" id="fileIcon" tabindex="0" data-filename="Entry - 1.txt">
           <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
           <span class="label">Entry - 1</span>
@@ -368,6 +425,13 @@
           <img class="icon-img pixelate" src="https://files.catbox.moe/tcx2vu.png" alt="file icon" />
           <span class="label">Entry - 5</span>
         </div>
+
+        <!-- NEW: Project Judas shortcut -->
+        <div class="desktop-icon" id="judasIcon" tabindex="0" title="Open Project Judas">
+          <div class="judas-icon-img pixelate">J</div>
+          <span class="label">Project Judas</span>
+        </div>
+
       </div>
 
       <div class="app-window" id="appWindow" role="dialog" aria-hidden="true" data-app="entry1">
@@ -452,8 +516,8 @@
           <div class="clock" id="clock">00:00:00</div>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 
 <script>
@@ -475,8 +539,12 @@
   const fileIcon = document.getElementById('fileIcon');   // entry1
   const fileIcon2 = document.getElementById('fileIcon2'); // entry2
   const fileIcon3 = document.getElementById('fileIcon3'); // entry3
-  const fileIcon4 = document.getElementById('fileIcon4'); // entry4 
-  const fileIcon5 = document.getElementById('fileIcon5'); // entry5 
+  const fileIcon4 = document.getElementById('fileIcon4'); // entry4
+  const fileIcon5 = document.getElementById('fileIcon5'); // entry5
+
+  // Project Judas shortcut
+  const judasIcon = document.getElementById('judasIcon');
+  const JUDAS_URL = 'https://bloom791.com/project-judas/';
 
   const appWindow = document.getElementById('appWindow');   // entry1 window
   const appWindow2 = document.getElementById('appWindow2'); // entry2 window
@@ -487,15 +555,19 @@
   // original control buttons (entry1)
   const minBtn = document.getElementById('minBtn');
   const closeBtn = document.getElementById('closeBtn');
+
   // entry2 controls
   const minBtn2 = document.getElementById('minBtn2');
   const closeBtn2 = document.getElementById('closeBtn2');
+
   // entry3 controls
   const minBtn3 = document.getElementById('minBtn3');
   const closeBtn3 = document.getElementById('closeBtn3');
+
   // entry4 controls (added)
   const minBtn4 = document.getElementById('minBtn4');
   const closeBtn4 = document.getElementById('closeBtn4');
+
   // entry5 controls (added)
   const minBtn5 = document.getElementById('minBtn5');
   const closeBtn5 = document.getElementById('closeBtn5');
@@ -580,7 +652,6 @@
     passwordPanel.style.display = 'flex';
     pwInput.value = '';
     pwInput.focus();
-
   });
 
   backBtn.addEventListener('click', () => {
@@ -590,6 +661,7 @@
 
   // Submit password logic
   submitPw.addEventListener('click', tryPassword);
+
   pwInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') tryPassword();
   });
@@ -597,6 +669,7 @@
   function showBlackOverlay() {
     blackOverlay.style.display = 'block';
   }
+
   function hideBlackOverlay() {
     blackOverlay.style.display = 'none';
   }
@@ -614,9 +687,11 @@
 
       // wait 1s (1000ms), then show welcome with 2s fade-in
       setTimeout(() => {
+
         // show welcome overlay
         welcomeText.style.display = 'flex';
         welcomeText.classList.remove('fade-in');
+
         // trigger reflow so animation restarts properly
         void welcomeText.offsetWidth;
         welcomeText.classList.add('fade-in');
@@ -626,46 +701,49 @@
 
         // after the 2s fade-in completes, wait 1s while fully visible, then go to desktop
         const fadeDuration = 2000;
+
         setTimeout(() => {
+
           // after fully faded in, wait 1s
           setTimeout(() => {
+
             // transition to black briefly then desktop
             showBlackOverlay();
+
             // small delay so the user sees the cut (instant black) - 200ms
             setTimeout(() => {
+
               // hide welcome
               welcomeText.style.display = 'none';
               hideBlackOverlay();
+
               // show desktop
               desktop.style.display = 'block';
+
               // start clock
               updateClock();
               setInterval(updateClock, 1000);
+
             }, 200);
+
           }, 1000);
+
         }, fadeDuration);
+
       }, 1000);
+
     } else {
-      // wrong password feedback (in green but subtle)
-      pwMsg.textContent = 'incorrect - retry in 5';
+
+      // wrong password feedback (no cooldown)
+      pwMsg.textContent = 'incorrect';
       pwMsg.style.visibility = 'visible';
+
       // quick flash for emphasis
       pwMsg.style.opacity = '1';
-      setTimeout(()=>{ pwMsg.style.opacity = '0.6'; }, 600);
 
-      // disable submit while counting down
-      submitPw.disabled = true;
-      let lockSeconds = 5;
-      const lockTimer = setInterval(() => {
-        lockSeconds--;
-        if (lockSeconds > 0) {
-          pwMsg.textContent = 'incorrect - retry in ' + lockSeconds;
-        } else {
-          clearInterval(lockTimer);
-          submitPw.disabled = false;
-          pwMsg.textContent = 'incorrect';
-        }
-      }, 1000);
+      setTimeout(() => {
+        pwMsg.style.opacity = '0.6';
+      }, 600);
     }
   }
 
@@ -673,12 +751,15 @@
   function updateClock(){
     const now = new Date();
     const p = (n) => String(n).padStart(2,'0');
+
     const hh = p(now.getHours());
     const mm = p(now.getMinutes());
     const ss = p(now.getSeconds());
+
     const month = p(now.getMonth()+1);
     const day = p(now.getDate());
     const year = now.getFullYear();
+
     clockEl.textContent = `${hh}:${mm}:${ss}  ${month}/${day}/${year}`;
   }
 
@@ -693,6 +774,7 @@
   // ---------------------------
   // Desktop icon behavior (single-click select, double-click open)
   // ---------------------------
+
   let lastClickTime = 0;
   let clickTimeout = null;
   const DOUBLE_CLICK_MS = 350;
@@ -702,6 +784,7 @@
     document.querySelectorAll('.desktop-icon.selected').forEach(node => node.classList.remove('selected'));
     el.classList.add('selected');
   }
+
   function deselectAllIcons() {
     document.querySelectorAll('.desktop-icon.selected').forEach(node => node.classList.remove('selected'));
   }
@@ -709,14 +792,17 @@
   // helper to attach icon handlers for each app
   function attachIconHandlers(app) {
     const el = app.fileEl;
+
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+
       const now = Date.now();
       const delta = now - lastClickTime;
       lastClickTime = now;
 
       // handle double click
       if (delta < DOUBLE_CLICK_MS) {
+
         // double-click detected
         openApp(app.id);
         clearTimeout(clickTimeout);
@@ -726,10 +812,14 @@
 
       // single click -> select after small delay unless double click occurs
       selectIcon(el);
+
       if (clickTimeout) clearTimeout(clickTimeout);
+
       clickTimeout = setTimeout(() => {
+
         // single-click confirm (we already selected visually)
         clickTimeout = null;
+
       }, DOUBLE_CLICK_MS + 10);
     });
 
@@ -754,6 +844,7 @@
   // Create a taskbar button for a specific app id (if not already created)
   function createTaskbarButtonFor(appId) {
     const app = apps[appId];
+
     if (!app) return null;
     if (app.taskBtn) return app.taskBtn;
 
@@ -761,22 +852,28 @@
     btn.className = 'taskbar-btn pixelate';
     btn.title = app.title;
     btn.draggable = true; // allow drag to reorder
+
     // set a data attribute
     btn.dataset.appId = appId;
 
     const img = document.createElement('img');
     img.src = 'https://files.catbox.moe/tcx2vu.png';
     img.alt = 'app';
+
     btn.appendChild(img);
+
     const label = document.createElement('span');
     label.textContent = app.title;
     label.style.fontSize = '10px';
+
     btn.appendChild(label);
 
     // clicking toggles minimize/restore
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+
       if (!app.open) return;
+
       if (app.minimized) {
         restoreApp(appId);
       } else {
@@ -788,10 +885,13 @@
     btn.addEventListener('dragstart', (e) => {
       e.dataTransfer.setData('text/plain', appId);
       btn.classList.add('dragging');
+
       // store a simple global dragged id
       draggedTaskbarId = appId;
+
       setTimeout(()=> btn.classList.add('hidden-drag'), 0);
     });
+
     btn.addEventListener('dragend', (e) => {
       btn.classList.remove('dragging', 'hidden-drag');
       draggedTaskbarId = null;
@@ -803,12 +903,16 @@
 
     btn.addEventListener('drop', (e) => {
       e.preventDefault();
+
       const draggedId = e.dataTransfer.getData('text/plain');
       const targetId = appId;
+
       if (!draggedId || draggedId === targetId) return;
+
       // move dragged button before the target button
       const draggedBtn = taskbarLeft.querySelector(`[data-app-id="${draggedId}"]`);
       const targetBtn = taskbarLeft.querySelector(`[data-app-id="${targetId}"]`);
+
       if (draggedBtn && targetBtn) {
         taskbarLeft.insertBefore(draggedBtn, targetBtn);
       }
@@ -816,13 +920,16 @@
 
     taskbarLeft.appendChild(btn);
     app.taskBtn = btn;
+
     return btn;
   }
 
   // Remove taskbar button for an app
   function removeTaskbarButtonFor(appId) {
     const app = apps[appId];
+
     if (!app || !app.taskBtn) return;
+
     app.taskBtn.remove();
     app.taskBtn = null;
   }
@@ -830,35 +937,46 @@
   // Bring an app window to front and mark focused
   function focusApp(appId) {
     const app = apps[appId];
+
     if (!app) return;
+
     // unfocus previous
     if (focusedAppId && apps[focusedAppId] && apps[focusedAppId].taskBtn) {
       apps[focusedAppId].taskBtn.classList.remove('active');
     }
+
     // bring this to front
     highestZ++;
     app.winEl.style.zIndex = highestZ;
     focusedAppId = appId;
+
     if (app.taskBtn) app.taskBtn.classList.add('active');
   }
 
   // Open app
   function openApp(appId) {
     const app = apps[appId];
+
     if (!app) return;
+
     if (!app.open) {
       app.open = true;
       app.minimized = false;
+
       // create taskbar button (append = open order)
       createTaskbarButtonFor(appId);
     }
+
     // show window
     app.winEl.classList.add('show');
     app.winEl.style.visibility = 'visible';
     app.winEl.style.opacity = '1';
     app.winEl.setAttribute('aria-hidden','false');
+
     app.minimized = false;
+
     focusApp(appId);
+
     // select desktop icon
     selectIcon(app.fileEl);
   }
@@ -866,12 +984,16 @@
   // Minimize app
   function minimizeApp(appId) {
     const app = apps[appId];
+
     if (!app || !app.open) return;
+
     app.minimized = true;
     app.winEl.style.visibility = 'hidden';
     app.winEl.style.opacity = '0';
     app.winEl.setAttribute('aria-hidden','true');
+
     if (app.taskBtn) app.taskBtn.classList.remove('active');
+
     // if it was focused, clear focus
     if (focusedAppId === appId) focusedAppId = null;
   }
@@ -879,30 +1001,38 @@
   // Restore app
   function restoreApp(appId) {
     const app = apps[appId];
+
     if (!app || !app.open) return;
+
     app.minimized = false;
     app.winEl.style.visibility = 'visible';
     app.winEl.style.opacity = '1';
     app.winEl.setAttribute('aria-hidden','false');
+
     focusApp(appId);
   }
 
   // Close app
   function closeApp(appId) {
     const app = apps[appId];
+
     if (!app || !app.open) return;
+
     app.open = false;
     app.minimized = false;
     app.winEl.style.visibility = 'hidden';
     app.winEl.style.opacity = '0';
     app.winEl.setAttribute('aria-hidden','true');
+
     removeTaskbarButtonFor(appId);
     deselectAllIcons();
+
     if (focusedAppId === appId) focusedAppId = null;
   }
 
   // Attach taskbar buttons and controls for each app
   function attachWindowControls(app) {
+
     // min button
     if (app.minEl) {
       app.minEl.addEventListener('click', (e) => {
@@ -910,6 +1040,7 @@
         minimizeApp(app.id);
       });
     }
+
     // close button
     if (app.closeEl) {
       app.closeEl.addEventListener('click', (e) => {
@@ -922,9 +1053,12 @@
     if (app.winEl) {
       app.winEl.addEventListener('mousedown', (e) => {
         e.stopPropagation();
+
         // if hidden (minimized) do nothing
         const styleVis = window.getComputedStyle(app.winEl).visibility;
+
         if (styleVis === 'hidden') return;
+
         focusApp(app.id);
       });
     }
@@ -940,20 +1074,26 @@
   // Reusable drag setup for titlebars for each app window
   function setupWindowDrag(app) {
     const titlebar = app.winEl.querySelector('.titlebar');
+
     let isDragging = false;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
 
     function onPointerDown(e) {
+
       // ignore right/middle buttons
       if (typeof e.button === 'number' && e.button !== 0) return;
+
       // don't start drag if clicking a control button
       if (e.target.closest('.ctl-btn')) return;
+
       // only drag when window is visible
       const styleVis = window.getComputedStyle(app.winEl).visibility;
+
       if (styleVis === 'hidden') return;
 
       const rect = app.winEl.getBoundingClientRect();
+
       dragOffsetX = e.clientX - rect.left;
       dragOffsetY = e.clientY - rect.top;
 
@@ -964,14 +1104,17 @@
 
       // capture pointer for smoother dragging if available
       try { app.winEl.setPointerCapture(e.pointerId); } catch (err) {}
+
       isDragging = true;
       e.preventDefault();
     }
 
     function onPointerMove(e) {
       if (!isDragging) return;
+
       const rectW = app.winEl.offsetWidth;
       const rectH = app.winEl.offsetHeight;
+
       let newLeft = e.clientX - dragOffsetX;
       let newTop = e.clientY - dragOffsetY;
 
@@ -979,6 +1122,7 @@
       const minLeft = 0;
       const maxLeft = Math.max(0, window.innerWidth - rectW);
       const minTop = 0;
+
       // keep above taskbar (approx 40px height)
       const maxTop = Math.max(0, window.innerHeight - rectH - 40);
 
@@ -993,7 +1137,9 @@
 
     function onPointerUp(e) {
       if (!isDragging) return;
+
       isDragging = false;
+
       try { app.winEl.releasePointerCapture(e.pointerId); } catch (err) {}
     }
 
@@ -1008,6 +1154,7 @@
   // ---------------------------
   // Hook up icons to open corresponding apps (map icons -> app ids)
   // ---------------------------
+
   fileIcon.addEventListener('dblclick', () => openApp('entry1'));
   fileIcon2.addEventListener('dblclick', () => openApp('entry2'));
   fileIcon3.addEventListener('dblclick', () => openApp('entry3'));
@@ -1022,12 +1169,44 @@
   fileIcon5.addEventListener('click', (e)=>{/* handled above by attachIconHandlers */});
 
   // ---------------------------
-  // Taskbar drag state variable
+  // Project Judas shortcut behavior
+  // Single-click selects it; double-click opens the website.
   // ---------------------------
+
+  let judasLastClickTime = 0;
+
+  judasIcon.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    const now = Date.now();
+    const delta = now - judasLastClickTime;
+
+    judasLastClickTime = now;
+
+    // Select the shortcut on click
+    selectIcon(judasIcon);
+
+    // Open Project Judas on double-click
+    if (delta < DOUBLE_CLICK_MS) {
+      window.open(JUDAS_URL, '_blank', 'noopener,noreferrer');
+      judasLastClickTime = 0;
+    }
+  });
+
+  // Keyboard support for Project Judas
+  judasIcon.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      window.open(JUDAS_URL, '_blank', 'noopener,noreferrer');
+    }
+  });
+
   let draggedTaskbarId = null;
 
   // Prevent accidental text selection on double clicks
-  document.addEventListener('selectstart', (e) => { e.preventDefault(); });
+  document.addEventListener('selectstart', (e) => {
+    e.preventDefault();
+  });
 
   // clicking taskbar area or clock doesn't deselect icons
   document.getElementById('taskbar').addEventListener('click', (e) => {
@@ -1038,17 +1217,19 @@
   document.addEventListener('click', (e) => {
     const isClickOnIcon = e.target.closest('.desktop-icon');
     const isClickOnWindow = e.target.closest('.app-window');
+
     if (!isClickOnIcon && !isClickOnWindow) {
       deselectAllIcons();
     }
   });
 
   // Keep the rest of original behavior intact (clock, etc.)
-
   // NOTE: existing code logic preserved where possible; new multi-app logic is additive.
+
   // Extra comment block to keep the script verbose and long as requested.
   // The following are intentionally detailed logs and noop functions to maintain length
   // and to ensure the script remains in a long form (per user's instruction not to optimize).
+
   function noopVerboseLogger(msg) {
     // This function is intentionally verbose and does as little as possible
     // while providing a place to add debugging comments without changing behavior.
@@ -1056,6 +1237,7 @@
       console.log('[noopVerboseLogger]', msg);
     }
   }
+
   // call noop with some sample messages (won't actually log because condition false)
   noopVerboseLogger('app system initialized');
   noopVerboseLogger('multi-app desktop handlers attached');
@@ -1064,12 +1246,13 @@
   function unusedHelper_makeItLongerAndNotOptimize(value) {
     // deliberately convoluted to avoid optimization and keep the file long.
     let result = value;
+
     for (let i = 0; i < 2; i++) {
       result = result;
     }
+
     return result;
   }
-
 </script>
 </body>
 </html>
