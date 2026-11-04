@@ -1,9 +1,15 @@
-
 const JudasApp = {
     currentUser: null,
     currentProfile: null,
     currentConversation: null,
+    currentConversationData: null,
+    currentConversationMembers: [],
+    currentReadStatus: null,
     messageChannel: null,
+    conversationChannel: null,
+    currentPage: "messages",
+    loadingMessages: false,
+    markingRead: false,
     root: document.getElementById("app"),
 
     async init() {
@@ -25,6 +31,7 @@ const JudasApp = {
         JudasAuth.onAuthStateChange(async (event, session) => {
             if (event === "SIGNED_OUT") {
                 await this.closeMessageSubscription();
+                await this.closeConversationSubscription();
                 this.currentUser = null;
                 this.currentProfile = null;
                 this.currentConversation = null;
@@ -74,6 +81,52 @@ const JudasApp = {
             await supabaseClient.removeChannel(this.messageChannel);
             this.messageChannel = null;
         }
+    },
+
+    async closeConversationSubscription() {
+        if (this.conversationChannel) {
+            await supabaseClient.removeChannel(this.conversationChannel);
+            this.conversationChannel = null;
+        }
+    },
+
+    async startConversationSubscription() {
+        await this.closeConversationSubscription();
+
+        this.conversationChannel = supabaseClient
+            .channel("conversation-list-" + this.currentUser.id)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "messages"
+                },
+                payload => {
+                    const message = payload.new;
+
+                    if (
+                        message.sender_id !== this.currentUser.id &&
+                        this.currentPage !== "users" &&
+                        this.currentPage !== "profile" &&
+                        this.currentPage !== "settings" &&
+                        this.currentPage !== "announcements"
+                    ) {
+                        if (!this.currentConversation) {
+                            this.loadConversations(false);
+                        } else if (
+                            message.conversation_id !== this.currentConversation
+                        ) {
+                            this.loadConversations(false);
+                        }
+                    }
+                }
+            )
+            .subscribe(status => {
+                if (status === "CHANNEL_ERROR") {
+                    console.error("Conversation notification connection failed.");
+                }
+            });
     },
 
     showAuthentication() {
@@ -731,6 +784,7 @@ const JudasApp = {
                 button.classList.add("active");
 
                 const page = button.dataset.page;
+                this.currentPage = page;
 
                 const titles = {
                     messages: "MESSAGES",
@@ -744,13 +798,18 @@ const JudasApp = {
                 document.getElementById("page-title").textContent =
                     titles[page] || "PROJECT JUDAS";
 
-                if (page !== "messages") {
+                if (page !== "messages" && page !== "groups") {
                     await this.closeMessageSubscription();
                     this.currentConversation = null;
                 }
 
                 if (page === "messages") {
                     await this.showMessages();
+                    return;
+                }
+
+                if (page === "groups") {
+                    await this.showGroups();
                     return;
                 }
 
@@ -768,10 +827,12 @@ const JudasApp = {
             });
         });
 
+        await this.startConversationSubscription();
         await this.showMessages();
     },
 
     async showMessages() {
+        this.currentPage = "messages";
         await this.closeMessageSubscription();
         this.currentConversation = null;
 
@@ -822,22 +883,76 @@ const JudasApp = {
         await this.loadConversations();
     },
 
-    async loadConversations() {
+    async showGroups() {
+        this.currentPage = "groups";
+        await this.closeMessageSubscription();
+        this.currentConversation = null;
+
+        const content = document.getElementById("page-content");
+
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="
+                width:100%;
+                max-width:900px;
+                margin:0 auto;
+                padding:25px;
+            ">
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    gap:15px;
+                    margin-bottom:20px;
+                ">
+                    <div>
+                        <h2 class="form-title">YOUR GROUP CHATS</h2>
+                        <p class="form-description">
+                            Group conversations across the network.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-primary" id="create-group-button">
+                        CREATE GROUP
+                    </button>
+                </div>
+
+                <div id="conversation-list">
+                    <div class="empty-state">
+                        <h2>LOADING GROUPS</h2>
+                        <p>Retrieving your group conversations...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("create-group-button").addEventListener(
+            "click",
+            () => this.showCreateGroup()
+        );
+
+        await this.loadConversations();
+    },
+
+    async loadConversations(showLoading = true) {
         const container = document.getElementById("conversation-list");
 
         if (!container || !this.currentUser) return;
 
-        container.innerHTML = `
-            <div class="empty-state">
-                <h2>LOADING</h2>
-                <p>Retrieving your conversations...</p>
-            </div>
-        `;
+        if (showLoading) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>LOADING</h2>
+                    <p>Retrieving your conversations...</p>
+                </div>
+            `;
+        }
 
         try {
             const { data: memberships, error: membershipError } = await supabaseClient
                 .from("conversation_members")
-                .select("conversation_id")
+                .select("conversation_id, role")
                 .eq("user_id", this.currentUser.id);
 
             if (membershipError) {
@@ -848,7 +963,7 @@ const JudasApp = {
                 container.innerHTML = `
                     <div class="empty-state">
                         <h2>NO CONVERSATIONS</h2>
-                        <p>Visit Find Users and select someone to start a conversation.</p>
+                        <p>Visit Find Users or create a group to get started.</p>
                     </div>
                 `;
                 return;
@@ -858,7 +973,7 @@ const JudasApp = {
 
             const { data: conversations, error: conversationError } = await supabaseClient
                 .from("conversations")
-                .select("id, type, name, created_at")
+                .select("id, type, name, created_at, created_by")
                 .in("id", conversationIds)
                 .order("created_at", { ascending: false });
 
@@ -866,35 +981,49 @@ const JudasApp = {
                 throw conversationError;
             }
 
+            const { data: readStatuses, error: statusError } = await supabaseClient
+                .from("conversation_read_status")
+                .select("conversation_id, last_read_at, notification_dismissed_at")
+                .eq("user_id", this.currentUser.id)
+                .in("conversation_id", conversationIds);
+
+            if (statusError) {
+                throw statusError;
+            }
+
             const conversationDetails = await Promise.all(
                 conversations.map(async conversation => {
                     const { data: members, error: membersError } = await supabaseClient
                         .from("conversation_members")
-                        .select("user_id")
+                        .select("user_id, role")
                         .eq("conversation_id", conversation.id);
 
                     if (membersError) {
                         throw membersError;
                     }
 
-                    const otherMember = members.find(
+                    const otherMembers = members.filter(
                         member => member.user_id !== this.currentUser.id
                     );
 
                     let otherProfile = null;
+                    let memberProfiles = [];
 
-                    if (otherMember) {
-                        const { data: profile, error: profileError } = await supabaseClient
+                    if (otherMembers.length > 0) {
+                        const { data: profiles, error: profileError } = await supabaseClient
                             .from("profiles")
                             .select("id, username, display_name, avatar_url")
-                            .eq("id", otherMember.user_id)
-                            .maybeSingle();
+                            .in("id", otherMembers.map(member => member.user_id));
 
                         if (profileError) {
                             throw profileError;
                         }
 
-                        otherProfile = profile;
+                        memberProfiles = profiles || [];
+
+                        if (conversation.type !== "group") {
+                            otherProfile = memberProfiles[0] || null;
+                        }
                     }
 
                     const { data: latestMessage, error: messageError } = await supabaseClient
@@ -909,15 +1038,53 @@ const JudasApp = {
                         throw messageError;
                     }
 
+                    const status = readStatuses?.find(
+                        item => item.conversation_id === conversation.id
+                    );
+
+                    let unreadCount = 0;
+
+                    if (status?.notification_dismissed_at) {
+                        const { count, error: unreadError } = await supabaseClient
+                            .from("messages")
+                            .select("id", { count: "exact", head: true })
+                            .eq("conversation_id", conversation.id)
+                            .neq("sender_id", this.currentUser.id)
+                            .gt("created_at", status.notification_dismissed_at);
+
+                        if (unreadError) {
+                            throw unreadError;
+                        }
+
+                        unreadCount = count || 0;
+                    }
+
+                    const myMembership = members.find(
+                        member => member.user_id === this.currentUser.id
+                    );
+
                     return {
                         conversation,
                         otherProfile,
-                        latestMessage
+                        memberProfiles,
+                        members,
+                        latestMessage,
+                        status,
+                        unreadCount,
+                        myRole: myMembership?.role || "member"
                     };
                 })
             );
 
-            conversationDetails.sort((a, b) => {
+            const filteredDetails = conversationDetails.filter(item => {
+                if (this.currentPage === "groups") {
+                    return item.conversation.type === "group";
+                }
+
+                return item.conversation.type !== "group";
+            });
+
+            filteredDetails.sort((a, b) => {
                 const aDate = a.latestMessage?.created_at || a.conversation.created_at;
                 const bDate = b.latestMessage?.created_at || b.conversation.created_at;
 
@@ -926,7 +1093,7 @@ const JudasApp = {
 
             container.innerHTML = "";
 
-            for (const item of conversationDetails) {
+            for (const item of filteredDetails) {
                 const card = document.createElement("button");
                 card.type = "button";
                 card.style.cssText = `
@@ -936,8 +1103,8 @@ const JudasApp = {
                     gap:14px;
                     padding:14px;
                     margin-bottom:10px;
-                    background:var(--surface);
-                    border:1px solid var(--border);
+                    background:${item.unreadCount > 0 ? "var(--surface-light)" : "var(--surface)"};
+                    border:1px solid ${item.unreadCount > 0 ? "var(--green)" : "var(--border)"};
                     color:var(--text);
                     text-align:left;
                     cursor:pointer;
@@ -953,13 +1120,17 @@ const JudasApp = {
                     font-size:16px;
                 `;
 
-                const displayName = item.otherProfile
-                    ? item.otherProfile.display_name || item.otherProfile.username
-                    : item.conversation.name || "UNKNOWN CONVERSATION";
+                const isGroup = item.conversation.type === "group";
+
+                const displayName = isGroup
+                    ? item.conversation.name || "UNNAMED GROUP"
+                    : item.otherProfile
+                        ? item.otherProfile.display_name || item.otherProfile.username
+                        : "UNKNOWN CONVERSATION";
 
                 avatar.textContent = displayName.charAt(0).toUpperCase();
 
-                if (item.otherProfile?.avatar_url) {
+                if (!isGroup && item.otherProfile?.avatar_url) {
                     const { data } = await supabaseClient
                         .storage
                         .from("avatars")
@@ -983,9 +1154,9 @@ const JudasApp = {
 
                 const username = document.createElement("div");
                 username.style.cssText = "font-size:9px;color:var(--green);margin-top:4px;";
-                username.textContent = item.otherProfile
-                    ? "@" + item.otherProfile.username
-                    : "GROUP CONVERSATION";
+                username.textContent = isGroup
+                    ? `${item.members.length} MEMBERS`
+                    : "@" + (item.otherProfile?.username || "UNKNOWN");
 
                 const preview = document.createElement("div");
                 preview.style.cssText = `
@@ -1010,6 +1181,25 @@ const JudasApp = {
                 info.append(name, username, preview);
                 card.append(avatar, info);
 
+                if (item.unreadCount > 0) {
+                    const badge = document.createElement("div");
+                    badge.textContent = item.unreadCount > 99 ? "99+" : item.unreadCount;
+                    badge.style.cssText = `
+                        min-width:23px;
+                        height:23px;
+                        padding:0 6px;
+                        border-radius:20px;
+                        background:var(--green);
+                        color:#050805;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:10px;
+                        font-weight:bold;
+                    `;
+                    card.appendChild(badge);
+                }
+
                 card.addEventListener("click", () => {
                     this.openConversation(item.conversation.id);
                 });
@@ -1017,11 +1207,13 @@ const JudasApp = {
                 container.appendChild(card);
             }
 
-            if (conversationDetails.length === 0) {
+            if (filteredDetails.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h2>NO CONVERSATIONS</h2>
-                        <p>Visit Find Users and select someone to start a conversation.</p>
+                        <h2>${this.currentPage === "groups" ? "NO GROUP CHATS" : "NO DIRECT MESSAGES"}</h2>
+                        <p>${this.currentPage === "groups"
+                            ? "Create a group to start talking with multiple users."
+                            : "Visit Find Users and select someone to start a conversation."}</p>
                     </div>
                 `;
             }
@@ -1031,7 +1223,7 @@ const JudasApp = {
 
             container.innerHTML = `
                 <div class="empty-state">
-                    <h2>COULD NOT LOAD MESSAGES</h2>
+                    <h2>COULD NOT LOAD CONVERSATIONS</h2>
                     <p>${this.escapeHTML(error.message || "An unexpected error occurred.")}</p>
                     <button class="btn" id="retry-conversations">TRY AGAIN</button>
                 </div>
@@ -1042,6 +1234,261 @@ const JudasApp = {
                 () => this.loadConversations()
             );
         }
+    },
+
+    async showCreateGroup() {
+        const content = document.getElementById("page-content");
+
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="
+                width:100%;
+                max-width:700px;
+                margin:0 auto;
+                padding:25px;
+            ">
+                <button class="btn" id="cancel-create-group" style="margin-bottom:20px;">
+                    &lt; BACK TO GROUPS
+                </button>
+
+                <h2 class="form-title">CREATE GROUP</h2>
+                <p class="form-description">
+                    Create a group conversation and invite users.
+                </p>
+
+                <form id="create-group-form">
+                    <div class="form-group">
+                        <label class="form-label">GROUP NAME</label>
+                        <input
+                            class="form-input"
+                            id="group-name-input"
+                            maxlength="50"
+                            minlength="1"
+                            placeholder="Enter a group name"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">SEARCH USERS TO INVITE</label>
+                        <input
+                            class="form-input"
+                            id="group-user-search"
+                            type="search"
+                            placeholder="Search by username or display name..."
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div id="group-user-results" style="
+                        display:flex;
+                        flex-direction:column;
+                        gap:8px;
+                        margin-bottom:15px;
+                    ">
+                        <p class="form-description">Search for users to invite.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">SELECTED MEMBERS</label>
+                        <div id="selected-group-users" style="
+                            color:var(--text-muted);
+                            font-size:11px;
+                            padding:12px;
+                            background:var(--surface);
+                            border:1px solid var(--border);
+                        ">
+                            No members selected.
+                        </div>
+                    </div>
+
+                    <p id="create-group-error" style="
+                        color:var(--danger);
+                        font-size:11px;
+                        margin-bottom:15px;
+                    "></p>
+
+                    <button class="btn btn-primary" type="submit" style="width:100%;">
+                        CREATE GROUP
+                    </button>
+                </form>
+            </div>
+        `;
+
+        document.getElementById("cancel-create-group").addEventListener(
+            "click",
+            () => this.showGroups()
+        );
+
+        const selectedUsers = new Map();
+        const searchInput = document.getElementById("group-user-search");
+        let searchTimeout = null;
+        let searchVersion = 0;
+
+        const renderSelected = () => {
+            const container = document.getElementById("selected-group-users");
+
+            if (selectedUsers.size === 0) {
+                container.textContent = "No members selected.";
+                return;
+            }
+
+            container.innerHTML = "";
+
+            selectedUsers.forEach(user => {
+                const row = document.createElement("div");
+                row.style.cssText = `
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                    margin-bottom:7px;
+                `;
+
+                const label = document.createElement("span");
+                label.textContent = user.display_name || user.username;
+
+                const remove = document.createElement("button");
+                remove.className = "btn";
+                remove.type = "button";
+                remove.textContent = "REMOVE";
+                remove.addEventListener("click", () => {
+                    selectedUsers.delete(user.id);
+                    renderSelected();
+                });
+
+                row.append(label, remove);
+                container.appendChild(row);
+            });
+        };
+
+        searchInput.addEventListener("input", () => {
+            clearTimeout(searchTimeout);
+
+            const query = searchInput.value.trim();
+            searchVersion++;
+
+            if (query.length < 2) {
+                document.getElementById("group-user-results").innerHTML =
+                    `<p class="form-description">Enter at least 2 characters to search.</p>`;
+                return;
+            }
+
+            const version = searchVersion;
+
+            searchTimeout = setTimeout(async () => {
+                const safeQuery = query
+                    .replace(/[%_\\]/g, character => "\\" + character)
+                    .replace(/,/g, "");
+
+                const { data, error } = await supabaseClient
+                    .from("profiles")
+                    .select("id, username, display_name")
+                    .or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
+                    .neq("id", this.currentUser.id)
+                    .order("username", { ascending: true })
+                    .limit(20);
+
+                if (version !== searchVersion) return;
+
+                const results = document.getElementById("group-user-results");
+
+                if (error) {
+                    results.textContent = "Could not search users.";
+                    return;
+                }
+
+                results.innerHTML = "";
+
+                const availableUsers = (data || []).filter(
+                    user => !selectedUsers.has(user.id)
+                );
+
+                if (availableUsers.length === 0) {
+                    results.innerHTML = `<p class="form-description">No available users found.</p>`;
+                    return;
+                }
+
+                availableUsers.forEach(user => {
+                    const row = document.createElement("div");
+                    row.style.cssText = `
+                        display:flex;
+                        align-items:center;
+                        justify-content:space-between;
+                        gap:10px;
+                        padding:10px;
+                        background:var(--surface);
+                        border:1px solid var(--border);
+                    `;
+
+                    const label = document.createElement("div");
+                    label.style.cssText = "font-size:11px;";
+                    label.textContent =
+                        `${user.display_name || user.username} (@${user.username})`;
+
+                    const add = document.createElement("button");
+                    add.className = "btn";
+                    add.type = "button";
+                    add.textContent = "ADD";
+
+                    add.addEventListener("click", () => {
+                        selectedUsers.set(user.id, user);
+                        renderSelected();
+                        searchInput.dispatchEvent(new Event("input"));
+                    });
+
+                    row.append(label, add);
+                    results.appendChild(row);
+                });
+            }, 300);
+        });
+
+        document.getElementById("create-group-form").addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const name = document.getElementById("group-name-input").value.trim();
+            const errorBox = document.getElementById("create-group-error");
+            const button = event.currentTarget.querySelector("button[type='submit']");
+
+            if (!name || name.length > 50) {
+                errorBox.textContent = "Group names must be between 1 and 50 characters.";
+                return;
+            }
+
+            if (selectedUsers.size === 0) {
+                errorBox.textContent = "Select at least one person to invite.";
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "CREATING GROUP...";
+
+            try {
+                const { data, error } = await supabaseClient.rpc(
+                    "create_group_conversation",
+                    {
+                        group_name: name,
+                        invited_users: Array.from(selectedUsers.keys())
+                    }
+                );
+
+                if (error) throw error;
+
+                if (!data) {
+                    throw new Error("The group was created, but no conversation ID was returned.");
+                }
+
+                this.notify("Group created successfully.");
+                await this.openConversation(data);
+
+            } catch (error) {
+                console.error("Group creation error:", error);
+                errorBox.textContent = error.message || "Could not create the group.";
+                button.disabled = false;
+                button.textContent = "CREATE GROUP";
+            }
+        });
     },
 
     async startDirectMessage(targetUserId) {
@@ -1095,6 +1542,9 @@ const JudasApp = {
         await this.closeMessageSubscription();
 
         this.currentConversation = conversationId;
+        this.currentReadStatus = null;
+        this.currentConversationData = null;
+        this.currentConversationMembers = [];
 
         const content = document.getElementById("page-content");
 
@@ -1136,6 +1586,10 @@ const JudasApp = {
                             style="font-size:9px;color:var(--text-muted);margin-top:5px;"
                         ></div>
                     </div>
+
+                    <button class="btn" id="group-manage-button" style="display:none;">
+                        MANAGE
+                    </button>
 
                     <button class="btn" id="refresh-messages">
                         REFRESH
@@ -1193,12 +1647,18 @@ const JudasApp = {
 
         document.getElementById("back-to-messages").addEventListener(
             "click",
-            () => this.showMessages()
+            () => {
+                if (this.currentPage === "groups") {
+                    this.showGroups();
+                } else {
+                    this.showMessages();
+                }
+            }
         );
 
         document.getElementById("refresh-messages").addEventListener(
             "click",
-            () => this.loadMessages(conversationId)
+            () => this.loadMessages(conversationId, true)
         );
 
         document.getElementById("message-form").addEventListener(
@@ -1207,39 +1667,54 @@ const JudasApp = {
         );
 
         try {
+            const { data: conversation, error: conversationError } = await supabaseClient
+                .from("conversations")
+                .select("id, type, name, created_by")
+                .eq("id", conversationId)
+                .single();
+
+            if (conversationError) throw conversationError;
+
+            this.currentConversationData = conversation;
+
             const { data: members, error: membersError } = await supabaseClient
                 .from("conversation_members")
-                .select("user_id")
+                .select("user_id, role")
                 .eq("conversation_id", conversationId);
 
-            if (membersError) {
-                throw membersError;
-            }
+            if (membersError) throw membersError;
 
-            const otherMember = members.find(
+            this.currentConversationMembers = members || [];
+
+            const otherMembers = members.filter(
                 member => member.user_id !== this.currentUser.id
             );
 
-            let otherProfile = null;
+            let profiles = [];
 
-            if (otherMember) {
+            if (otherMembers.length > 0) {
                 const { data, error } = await supabaseClient
                     .from("profiles")
-                    .select("username, display_name")
-                    .eq("id", otherMember.user_id)
-                    .maybeSingle();
+                    .select("id, username, display_name, avatar_url")
+                    .in("id", otherMembers.map(member => member.user_id));
 
-                if (error) {
-                    throw error;
-                }
-
-                otherProfile = data;
+                if (error) throw error;
+                profiles = data || [];
             }
 
             const title = document.getElementById("conversation-title");
             const subtitle = document.getElementById("conversation-subtitle");
 
-            if (title && subtitle) {
+            if (conversation.type === "group") {
+                title.textContent = conversation.name || "GROUP CONVERSATION";
+                subtitle.textContent = `${members.length} MEMBERS`;
+
+                const manageButton = document.getElementById("group-manage-button");
+                manageButton.style.display = "block";
+                manageButton.addEventListener("click", () => this.showGroupManagement());
+            } else {
+                const otherProfile = profiles[0] || null;
+
                 title.textContent = otherProfile
                     ? otherProfile.display_name || otherProfile.username
                     : "CONVERSATION";
@@ -1249,8 +1724,31 @@ const JudasApp = {
                     : "PROJECT JUDAS";
             }
 
-            await this.loadMessages(conversationId);
+            const { data: readStatus, error: readError } = await supabaseClient
+                .from("conversation_read_status")
+                .select("last_read_at, notification_dismissed_at")
+                .eq("conversation_id", conversationId)
+                .eq("user_id", this.currentUser.id)
+                .maybeSingle();
+
+            if (readError) throw readError;
+
+            this.currentReadStatus = readStatus;
+
+            const { error: dismissError } = await supabaseClient.rpc(
+                "dismiss_conversation_notification",
+                {
+                    target_conversation_id: conversationId
+                }
+            );
+
+            if (dismissError) {
+                console.error("Notification dismissal error:", dismissError);
+            }
+
+            await this.loadMessages(conversationId, true);
             this.subscribeToMessages(conversationId);
+            this.loadConversations(false);
 
         } catch (error) {
             console.error("Opening conversation error:", error);
@@ -1258,10 +1756,21 @@ const JudasApp = {
         }
     },
 
-    async loadMessages(conversationId) {
+    async loadMessages(conversationId, initialLoad = false) {
         const container = document.getElementById("message-list");
 
-        if (!container || this.currentConversation !== conversationId) return;
+        if (
+            !container ||
+            this.currentConversation !== conversationId ||
+            this.loadingMessages
+        ) return;
+
+        this.loadingMessages = true;
+
+        const wasAtBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight <= 40;
+
+        const previousScrollTop = container.scrollTop;
 
         try {
             const { data, error } = await supabaseClient
@@ -1271,25 +1780,60 @@ const JudasApp = {
                 .order("created_at", { ascending: true })
                 .limit(200);
 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
 
             if (this.currentConversation !== conversationId) return;
 
+            const messages = data || [];
+            const lastReadAt = this.currentReadStatus?.last_read_at;
+
+            const firstUnreadIndex = lastReadAt
+                ? messages.findIndex(message =>
+                    message.sender_id !== this.currentUser.id &&
+                    new Date(message.created_at) > new Date(lastReadAt)
+                )
+                : -1;
+
             container.innerHTML = "";
 
-            if (!data || data.length === 0) {
+            if (messages.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state" style="min-height:150px;">
                         <h2>NO MESSAGES YET</h2>
                         <p>Send the first message to begin this conversation.</p>
                     </div>
                 `;
+                this.loadingMessages = false;
                 return;
             }
 
-            for (const message of data) {
+            messages.forEach((message, index) => {
+                if (index === firstUnreadIndex) {
+                    const divider = document.createElement("div");
+                    divider.style.cssText = `
+                        display:flex;
+                        align-items:center;
+                        gap:12px;
+                        margin:12px 0;
+                        color:var(--green);
+                        font-size:9px;
+                        letter-spacing:2px;
+                    `;
+
+                    const lineLeft = document.createElement("div");
+                    const lineRight = document.createElement("div");
+
+                    lineLeft.style.cssText = "height:1px;background:var(--green);flex:1;";
+                    lineRight.style.cssText = "height:1px;background:var(--green);flex:1;";
+
+                    const label = document.createElement("span");
+                    label.textContent = "NEW MESSAGES";
+
+                    divider.append(lineLeft, label, lineRight);
+                    divider.id = "new-messages-divider";
+                    container.appendChild(divider);
+                }
+
                 const ownMessage = message.sender_id === this.currentUser.id;
 
                 const wrapper = document.createElement("div");
@@ -1327,12 +1871,35 @@ const JudasApp = {
                     new Date(message.created_at).toLocaleString();
 
                 wrapper.append(bubble, timestamp);
+                wrapper.dataset.messageId = message.id;
                 container.appendChild(wrapper);
+            });
+
+            if (initialLoad) {
+                const divider = document.getElementById("new-messages-divider");
+
+                if (divider) {
+                    divider.scrollIntoView({
+                        block: "start",
+                        behavior: "auto"
+                    });
+                } else {
+                    container.scrollTop = container.scrollHeight;
+                }
+            } else if (wasAtBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                container.scrollTop = previousScrollTop;
             }
 
-            container.scrollTop = container.scrollHeight;
+            this.loadingMessages = false;
+
+            if (wasAtBottom && !initialLoad) {
+                await this.markConversationRead(conversationId);
+            }
 
         } catch (error) {
+            this.loadingMessages = false;
             console.error("Message loading error:", error);
 
             container.innerHTML = `
@@ -1342,6 +1909,49 @@ const JudasApp = {
                 </div>
             `;
         }
+    },
+
+    async markConversationRead(conversationId) {
+        if (
+            this.markingRead ||
+            this.currentConversation !== conversationId
+        ) return;
+
+        const container = document.getElementById("message-list");
+
+        if (!container) return;
+
+        const distanceFromBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight;
+
+        if (distanceFromBottom > 40) return;
+
+        this.markingRead = true;
+
+        try {
+            const { error } = await supabaseClient.rpc(
+                "mark_conversation_read",
+                {
+                    target_conversation_id: conversationId
+                }
+            );
+
+            if (error) throw error;
+
+            this.currentReadStatus = {
+                ...(this.currentReadStatus || {}),
+                last_read_at: new Date().toISOString()
+            };
+
+            document.getElementById("new-messages-divider")?.remove();
+
+            await this.loadConversations(false);
+
+        } catch (error) {
+            console.error("Marking conversation as read failed:", error);
+        }
+
+        this.markingRead = false;
     },
 
     async sendMessage(event, conversationId) {
@@ -1375,9 +1985,7 @@ const JudasApp = {
                     body
                 });
 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
 
             input.value = "";
             await this.loadMessages(conversationId);
@@ -1414,6 +2022,386 @@ const JudasApp = {
                     console.error("Message realtime connection failed.");
                 }
             });
+
+        const container = document.getElementById("message-list");
+
+        if (container) {
+            container.addEventListener("scroll", () => {
+                this.markConversationRead(conversationId);
+            });
+        }
+    },
+
+    async showGroupManagement() {
+        const conversation = this.currentConversationData;
+
+        if (!conversation || conversation.type !== "group") return;
+
+        const isLeader = this.currentConversationMembers.some(
+            member =>
+                member.user_id === this.currentUser.id &&
+                member.role === "leader"
+        );
+
+        const content = document.getElementById("page-content");
+
+        if (!content) return;
+
+        const { data: profiles, error } = await supabaseClient
+            .from("profiles")
+            .select("id, username, display_name")
+            .in(
+                "id",
+                this.currentConversationMembers.map(member => member.user_id)
+            );
+
+        if (error) {
+            this.notify("Could not load group members.");
+            return;
+        }
+
+        const profileMap = new Map(
+            (profiles || []).map(profile => [profile.id, profile])
+        );
+
+        content.innerHTML = `
+            <div style="
+                width:100%;
+                max-width:800px;
+                margin:0 auto;
+                padding:25px;
+            ">
+                <button class="btn" id="back-to-group-chat" style="margin-bottom:20px;">
+                    &lt; BACK TO CHAT
+                </button>
+
+                <h2 class="form-title">GROUP MANAGEMENT</h2>
+                <p class="form-description">
+                    ${this.escapeHTML(conversation.name || "GROUP CONVERSATION")}
+                </p>
+
+                ${isLeader ? `
+                    <div style="margin:20px 0;padding:15px;background:var(--surface);border:1px solid var(--border);">
+                        <h3 class="form-title">RENAME GROUP</h3>
+                        <form id="rename-group-form" style="display:flex;gap:10px;">
+                            <input
+                                class="form-input"
+                                id="rename-group-input"
+                                maxlength="50"
+                                value="${this.escapeHTML(conversation.name || "")}"
+                                required
+                            >
+                            <button class="btn btn-primary" type="submit">SAVE</button>
+                        </form>
+                    </div>
+
+                    <div style="margin:20px 0;padding:15px;background:var(--surface);border:1px solid var(--border);">
+                        <h3 class="form-title">INVITE MEMBERS</h3>
+                        <input
+                            class="form-input"
+                            id="invite-search"
+                            type="search"
+                            placeholder="Search users to invite..."
+                        >
+                        <div id="invite-results" style="margin-top:10px;"></div>
+                    </div>
+                ` : ""}
+
+                <div style="margin-top:20px;">
+                    <h3 class="form-title">MEMBERS (${this.currentConversationMembers.length})</h3>
+                    <div id="group-member-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                </div>
+
+                ${isLeader ? `
+                    <div style="margin-top:25px;padding:15px;background:var(--surface);border:1px solid var(--border);">
+                        <h3 class="form-title">TRANSFER OWNERSHIP</h3>
+                        <p class="form-description">
+                            Transfer leadership to another group member.
+                        </p>
+                        <select class="form-input" id="transfer-leader-select">
+                            <option value="">Select a member...</option>
+                            ${this.currentConversationMembers
+                                .filter(member => member.user_id !== this.currentUser.id)
+                                .map(member => {
+                                    const profile = profileMap.get(member.user_id);
+                                    return `
+                                        <option value="${member.user_id}">
+                                            ${this.escapeHTML(profile?.display_name || profile?.username || "Unknown user")}
+                                        </option>
+                                    `;
+                                }).join("")}
+                        </select>
+                        <button class="btn" id="transfer-leader-button" style="margin-top:10px;">
+                            TRANSFER OWNERSHIP
+                        </button>
+                    </div>
+                ` : ""}
+
+                <div style="margin-top:25px;">
+                    <button class="btn btn-danger" id="leave-group-button">
+                        LEAVE GROUP
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("back-to-group-chat").addEventListener(
+            "click",
+            () => this.openConversation(conversation.id)
+        );
+
+        const memberList = document.getElementById("group-member-list");
+
+        this.currentConversationMembers.forEach(member => {
+            const profile = profileMap.get(member.user_id);
+            const row = document.createElement("div");
+
+            row.style.cssText = `
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:10px;
+                padding:12px;
+                background:var(--surface);
+                border:1px solid var(--border);
+            `;
+
+            const label = document.createElement("div");
+            label.style.cssText = "font-size:11px;";
+            label.textContent =
+                `${profile?.display_name || profile?.username || "Unknown user"}${member.user_id === this.currentUser.id ? " (YOU)" : ""}`;
+
+            const role = document.createElement("span");
+            role.style.cssText = "color:var(--green);font-size:9px;";
+            role.textContent = member.role === "leader" ? "LEADER" : "MEMBER";
+
+            row.append(label, role);
+
+            if (isLeader && member.user_id !== this.currentUser.id) {
+                const remove = document.createElement("button");
+                remove.className = "btn btn-danger";
+                remove.type = "button";
+                remove.textContent = "REMOVE";
+
+                remove.addEventListener("click", async () => {
+                    if (!confirm(`Remove ${profile?.display_name || profile?.username || "this member"} from the group?`)) {
+                        return;
+                    }
+
+                    const { error } = await supabaseClient.rpc(
+                        "manage_group_member",
+                        {
+                            target_conversation_id: conversation.id,
+                            target_user_id: member.user_id,
+                            action: "remove"
+                        }
+                    );
+
+                    if (error) {
+                        this.notify(error.message);
+                        return;
+                    }
+
+                    this.notify("Member removed.");
+                    await this.showGroupManagement();
+                });
+
+                row.appendChild(remove);
+            }
+
+            memberList.appendChild(row);
+        });
+
+        if (isLeader) {
+            document.getElementById("rename-group-form").addEventListener("submit", async event => {
+                event.preventDefault();
+
+                const newName = document.getElementById("rename-group-input").value.trim();
+
+                if (!newName || newName.length > 50) {
+                    this.notify("Group names must be between 1 and 50 characters.");
+                    return;
+                }
+
+                const { error } = await supabaseClient.rpc(
+                    "rename_group_conversation",
+                    {
+                        target_conversation_id: conversation.id,
+                        new_group_name: newName
+                    }
+                );
+
+                if (error) {
+                    this.notify(error.message);
+                    return;
+                }
+
+                this.currentConversationData.name = newName;
+                this.notify("Group renamed.");
+                await this.openConversation(conversation.id);
+            });
+
+            const inviteInput = document.getElementById("invite-search");
+            let inviteTimeout = null;
+            let inviteVersion = 0;
+
+            inviteInput.addEventListener("input", () => {
+                clearTimeout(inviteTimeout);
+
+                const query = inviteInput.value.trim();
+                inviteVersion++;
+
+                if (query.length < 2) {
+                    document.getElementById("invite-results").innerHTML = "";
+                    return;
+                }
+
+                const version = inviteVersion;
+
+                inviteTimeout = setTimeout(async () => {
+                    const safeQuery = query
+                        .replace(/[%_\\]/g, character => "\\" + character)
+                        .replace(/,/g, "");
+
+                    const { data, error } = await supabaseClient
+                        .from("profiles")
+                        .select("id, username, display_name")
+                        .or(`username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`)
+                        .neq("id", this.currentUser.id)
+                        .limit(20);
+
+                    if (version !== inviteVersion) return;
+
+                    const results = document.getElementById("invite-results");
+                    results.innerHTML = "";
+
+                    if (error) {
+                        results.textContent = "Could not search users.";
+                        return;
+                    }
+
+                    const existingIds = this.currentConversationMembers.map(
+                        member => member.user_id
+                    );
+
+                    const available = (data || []).filter(
+                        user => !existingIds.includes(user.id)
+                    );
+
+                    if (available.length === 0) {
+                        results.textContent = "No available users found.";
+                        return;
+                    }
+
+                    available.forEach(user => {
+                        const row = document.createElement("div");
+                        row.style.cssText = `
+                            display:flex;
+                            align-items:center;
+                            justify-content:space-between;
+                            gap:10px;
+                            padding:10px;
+                            margin-top:7px;
+                            background:var(--surface);
+                            border:1px solid var(--border);
+                        `;
+
+                        const label = document.createElement("span");
+                        label.style.fontSize = "10px";
+                        label.textContent =
+                            `${user.display_name || user.username} (@${user.username})`;
+
+                        const add = document.createElement("button");
+                        add.className = "btn";
+                        add.type = "button";
+                        add.textContent = "INVITE";
+
+                        add.addEventListener("click", async () => {
+                            add.disabled = true;
+                            add.textContent = "INVITING...";
+
+                            const { error: inviteError } = await supabaseClient.rpc(
+                                "invite_group_members",
+                                {
+                                    target_conversation_id: conversation.id,
+                                    invited_users: [user.id]
+                                }
+                            );
+
+                            if (inviteError) {
+                                this.notify(inviteError.message);
+                                add.disabled = false;
+                                add.textContent = "INVITE";
+                                return;
+                            }
+
+                            this.notify("Member invited.");
+                            await this.openConversation(conversation.id);
+                            await this.showGroupManagement();
+                        });
+
+                        row.append(label, add);
+                        results.appendChild(row);
+                    });
+                }, 300);
+            });
+
+            document.getElementById("transfer-leader-button").addEventListener("click", async () => {
+                const newLeaderId = document.getElementById("transfer-leader-select").value;
+
+                if (!newLeaderId) {
+                    this.notify("Select a group member first.");
+                    return;
+                }
+
+                if (!confirm("Transfer group ownership to this member? You will become a regular member.")) {
+                    return;
+                }
+
+                const { error } = await supabaseClient.rpc(
+                    "transfer_group_ownership",
+                    {
+                        target_conversation_id: conversation.id,
+                        new_leader_id: newLeaderId
+                    }
+                );
+
+                if (error) {
+                    this.notify(error.message);
+                    return;
+                }
+
+                this.notify("Group ownership transferred.");
+                await this.openConversation(conversation.id);
+            });
+        }
+
+        document.getElementById("leave-group-button").addEventListener("click", async () => {
+            if (isLeader) {
+                this.notify("Transfer ownership before leaving the group.");
+                return;
+            }
+
+            if (!confirm("Are you sure you want to leave this group?")) return;
+
+            const { error } = await supabaseClient.rpc(
+                "manage_group_member",
+                {
+                    target_conversation_id: conversation.id,
+                    target_user_id: this.currentUser.id,
+                    action: "leave"
+                }
+            );
+
+            if (error) {
+                this.notify(error.message);
+                return;
+            }
+
+            this.notify("You left the group.");
+            this.currentConversation = null;
+            await this.showGroups();
+        });
     },
 
     showFindUsers() {
@@ -1560,9 +2548,7 @@ const JudasApp = {
 
             if (version !== getCurrentVersion()) return;
 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
 
             if (!data || data.length === 0) {
                 status.textContent = "SEARCH COMPLETE. 0 RESULTS.";
