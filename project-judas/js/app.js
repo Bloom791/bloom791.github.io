@@ -1,8 +1,8 @@
+
 const JudasApp = {
 
     currentUser: null,
     currentProfile: null,
-
     root: document.getElementById("app"),
 
     // =====================================
@@ -904,6 +904,11 @@ const JudasApp = {
                 document.getElementById("page-title").textContent =
                     titles[page] || "PROJECT JUDAS";
 
+                if (page === "users") {
+                    this.showFindUsers();
+                    return;
+                }
+
                 document.getElementById("page-content").innerHTML = `
                     <div class="empty-state">
                         <h2>${this.escapeHTML(titles[page] || "PROJECT JUDAS")}</h2>
@@ -914,6 +919,493 @@ const JudasApp = {
             });
 
         });
+
+    },
+
+
+    // =====================================
+    // FIND USERS PAGE
+    // =====================================
+
+    showFindUsers() {
+
+        const content = document.getElementById("page-content");
+
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="
+                width:100%;
+                max-width:850px;
+                margin:0 auto;
+                padding:25px;
+            ">
+
+                <div style="margin-bottom:25px;">
+
+                    <h2 class="form-title">FIND USERS</h2>
+
+                    <p class="form-description" style="margin-bottom:15px;">
+                        Search the Project Judas network for other users.
+                    </p>
+
+                    <input
+                        type="search"
+                        class="chat-search"
+                        id="user-search"
+                        placeholder="Search by username or display name..."
+                        autocomplete="off"
+                        maxlength="40"
+                    >
+
+                    <p style="
+                        color:var(--text-dim);
+                        font-size:9px;
+                        margin-top:8px;
+                    ">
+                        ENTER A USERNAME OR DISPLAY NAME TO BEGIN SEARCHING.
+                    </p>
+
+                </div>
+
+                <div
+                    id="user-search-status"
+                    style="
+                        color:var(--text-muted);
+                        font-size:10px;
+                        margin-bottom:15px;
+                    "
+                >
+                    READY TO SEARCH.
+                </div>
+
+                <div
+                    id="user-search-results"
+                    style="
+                        display:flex;
+                        flex-direction:column;
+                        gap:10px;
+                    "
+                >
+
+                    <div class="empty-state" style="min-height:180px;">
+                        <h2>USER DIRECTORY</h2>
+                        <p>Search for someone to see their profile.</p>
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+        const searchInput = document.getElementById("user-search");
+
+        let searchTimeout = null;
+        let searchVersion = 0;
+
+        searchInput.addEventListener("input", () => {
+
+            clearTimeout(searchTimeout);
+
+            const query = searchInput.value.trim();
+
+            searchVersion++;
+
+            if (!query) {
+
+                this.renderUserSearchMessage(
+                    "USER DIRECTORY",
+                    "Search for someone to see their profile."
+                );
+
+                document.getElementById("user-search-status").textContent =
+                    "READY TO SEARCH.";
+
+                return;
+
+            }
+
+            if (query.length < 2) {
+
+                this.renderUserSearchMessage(
+                    "KEEP TYPING",
+                    "Enter at least 2 characters to search."
+                );
+
+                document.getElementById("user-search-status").textContent =
+                    "SEARCH REQUIRES 2 CHARACTERS.";
+
+                return;
+
+            }
+
+            const currentVersion = searchVersion;
+
+            document.getElementById("user-search-status").textContent =
+                "SEARCHING NETWORK...";
+
+            this.renderUserSearchMessage(
+                "SEARCHING",
+                "Looking for matching users..."
+            );
+
+            searchTimeout = setTimeout(async () => {
+
+                await this.searchUsers(query, currentVersion, () => searchVersion);
+
+            }, 350);
+
+        });
+
+        searchInput.focus();
+
+    },
+
+
+    // =====================================
+    // SEARCH USERS IN SUPABASE
+    // =====================================
+
+    async searchUsers(query, version, getCurrentVersion) {
+
+        const resultsContainer = document.getElementById("user-search-results");
+        const status = document.getElementById("user-search-status");
+
+        if (!resultsContainer || !status) return;
+
+        const safeQuery = query
+            .replace(/[%_\\]/g, character => "\\" + character)
+            .replace(/,/g, "");
+
+        try {
+
+            const { data, error } = await supabaseClient
+                .from("profiles")
+                .select("id, username, display_name, bio, pronouns, avatar_url")
+                .or(
+                    `username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`
+                )
+                .neq("id", this.currentUser.id)
+                .order("username", { ascending: true })
+                .limit(25);
+
+            if (version !== getCurrentVersion()) return;
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data || data.length === 0) {
+
+                status.textContent = "SEARCH COMPLETE. 0 RESULTS.";
+
+                this.renderUserSearchMessage(
+                    "NO USERS FOUND",
+                    "Try another username or display name."
+                );
+
+                return;
+
+            }
+
+            status.textContent =
+                `SEARCH COMPLETE. ${data.length} USER${data.length === 1 ? "" : "S"} FOUND.`;
+
+            await this.renderUserResults(data, version, getCurrentVersion);
+
+        } catch (error) {
+
+            console.error("User search error:", error);
+
+            if (version !== getCurrentVersion()) return;
+
+            status.textContent = "SEARCH FAILED.";
+
+            this.renderUserSearchMessage(
+                "CONNECTION ERROR",
+                "Could not search the user directory. Please try again."
+            );
+
+        }
+
+    },
+
+
+    // =====================================
+    // RENDER USER SEARCH RESULTS
+    // =====================================
+
+    async renderUserResults(users, version, getCurrentVersion) {
+
+        const container = document.getElementById("user-search-results");
+
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        for (const user of users) {
+
+            let avatarUrl = null;
+
+            if (user.avatar_url) {
+
+                const { data, error } = await supabaseClient
+                    .storage
+                    .from("avatars")
+                    .createSignedUrl(user.avatar_url, 3600);
+
+                if (!error && data) {
+                    avatarUrl = data.signedUrl;
+                }
+
+            }
+
+            if (version !== getCurrentVersion()) return;
+
+            const card = document.createElement("div");
+
+            card.style.cssText = `
+                display:flex;
+                align-items:center;
+                gap:15px;
+                padding:15px;
+                background:var(--surface);
+                border:1px solid var(--border);
+                min-width:0;
+            `;
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.style.cssText = `
+                width:52px;
+                height:52px;
+                min-width:52px;
+                font-size:18px;
+            `;
+
+            if (avatarUrl) {
+
+                const image = document.createElement("img");
+                image.src = avatarUrl;
+                image.alt = "Profile picture";
+                avatar.appendChild(image);
+
+            } else {
+
+                avatar.textContent = (
+                    user.display_name || user.username || "?"
+                ).charAt(0).toUpperCase();
+
+            }
+
+            const info = document.createElement("div");
+
+            info.style.cssText = `
+                flex:1;
+                min-width:0;
+            `;
+
+            const displayName = document.createElement("div");
+            displayName.style.cssText = `
+                color:var(--text);
+                font-size:12px;
+                overflow-wrap:anywhere;
+            `;
+            displayName.textContent = user.display_name || user.username;
+
+            const username = document.createElement("div");
+            username.style.cssText = `
+                color:var(--green);
+                font-size:10px;
+                margin-top:4px;
+                overflow-wrap:anywhere;
+            `;
+            username.textContent = "@" + user.username;
+
+            const bio = document.createElement("div");
+            bio.style.cssText = `
+                color:var(--text-muted);
+                font-size:9px;
+                margin-top:7px;
+                overflow-wrap:anywhere;
+            `;
+            bio.textContent = user.bio || "No bio provided.";
+
+            const pronouns = document.createElement("div");
+            pronouns.style.cssText = `
+                color:var(--text-dim);
+                font-size:9px;
+                margin-top:5px;
+            `;
+            pronouns.textContent = user.pronouns || "";
+
+            info.append(displayName, username, bio);
+
+            if (user.pronouns) {
+                info.appendChild(pronouns);
+            }
+
+            const viewButton = document.createElement("button");
+            viewButton.className = "btn";
+            viewButton.textContent = "VIEW";
+            viewButton.type = "button";
+
+            viewButton.addEventListener("click", () => {
+                this.showPublicProfile(user);
+            });
+
+            card.append(avatar, info, viewButton);
+
+            container.appendChild(card);
+
+        }
+
+    },
+
+
+    // =====================================
+    // SEARCH EMPTY / STATUS MESSAGE
+    // =====================================
+
+    renderUserSearchMessage(title, message) {
+
+        const container = document.getElementById("user-search-results");
+
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="empty-state" style="min-height:180px;">
+                <h2>${this.escapeHTML(title)}</h2>
+                <p>${this.escapeHTML(message)}</p>
+            </div>
+        `;
+
+    },
+
+
+    // =====================================
+    // VIEW PUBLIC USER PROFILE
+    // =====================================
+
+    async showPublicProfile(user) {
+
+        const content = document.getElementById("page-content");
+
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="
+                width:100%;
+                max-width:700px;
+                margin:30px auto;
+                padding:20px;
+            ">
+
+                <button
+                    class="btn"
+                    id="back-to-user-search"
+                    style="margin-bottom:20px;"
+                >
+                    &lt; BACK TO SEARCH
+                </button>
+
+                <div class="profile-container" style="margin:0;">
+
+                    <div class="profile-header">
+
+                        <div class="profile-avatar" id="public-profile-avatar">
+                            ${this.escapeHTML(
+                                (user.display_name || user.username || "?")
+                                    .charAt(0)
+                                    .toUpperCase()
+                            )}
+                        </div>
+
+                        <div style="min-width:0;">
+
+                            <div class="profile-display-name">
+                                ${this.escapeHTML(user.display_name || user.username)}
+                            </div>
+
+                            <div class="profile-username">
+                                @${this.escapeHTML(user.username)}
+                            </div>
+
+                            <div
+                                id="public-profile-pronouns"
+                                style="
+                                    color:var(--text-muted);
+                                    font-size:10px;
+                                    margin-top:7px;
+                                "
+                            >
+                                ${this.escapeHTML(user.pronouns || "")}
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div>
+
+                        <div class="form-label">ABOUT</div>
+
+                        <div class="profile-bio">
+                            ${this.escapeHTML(user.bio || "This user has not written a bio.")}
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        border-top:1px solid var(--border);
+                        margin-top:25px;
+                        padding-top:20px;
+                    ">
+
+                        <p style="
+                            color:var(--text-dim);
+                            font-size:9px;
+                        ">
+                            PROJECT JUDAS USER DIRECTORY
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+        document.getElementById("back-to-user-search").addEventListener(
+            "click",
+            () => this.showFindUsers()
+        );
+
+        if (user.avatar_url) {
+
+            const { data, error } = await supabaseClient
+                .storage
+                .from("avatars")
+                .createSignedUrl(user.avatar_url, 3600);
+
+            if (!error && data) {
+
+                const avatar = document.getElementById("public-profile-avatar");
+
+                if (avatar) {
+
+                    const image = document.createElement("img");
+                    image.src = data.signedUrl;
+                    image.alt = "Profile picture";
+
+                    avatar.textContent = "";
+                    avatar.appendChild(image);
+
+                }
+
+            }
+
+        }
 
     },
 
