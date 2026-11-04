@@ -1,1446 +1,1195 @@
 
-const JudasApp = {
-
-    currentUser: null,
-    currentProfile: null,
-    root: document.getElementById("app"),
-
-    // =====================================
-    // INITIALIZE APPLICATION
-    // =====================================
-
-    async init() {
-
-        if (!this.root) {
-            console.error("Project Judas: #app element not found.");
-            return;
-        }
-
-        this.showLoading();
-
-        const session = await JudasAuth.getSession();
-
-        if (session) {
-            await this.loadUser(session.user);
-        } else {
-            this.showAuthentication();
-        }
-
-        JudasAuth.onAuthStateChange(async (event, session) => {
-
-            if (event === "SIGNED_OUT") {
-                this.currentUser = null;
-                this.currentProfile = null;
-                this.showAuthentication();
-            }
-
-            if (event === "SIGNED_IN" && session) {
-                await this.loadUser(session.user);
-            }
-
-        });
-
-    },
-
-
-    // =====================================
-    // LOADING SCREEN
-    // =====================================
-
-    showLoading() {
-
-        this.root.innerHTML = `
-            <div class="empty-state">
-                <h2>PROJECT JUDAS</h2>
-                <p>Connecting to secure servers...</p>
-
-                <div class="loading">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-        `;
-
-    },
-
-
-    // =====================================
-    // NOTIFICATION
-    // =====================================
-
-    notify(message) {
-
-        const oldNotification = document.querySelector(".notification");
-
-        if (oldNotification) {
-            oldNotification.remove();
-        }
-
-        const notification = document.createElement("div");
-        notification.className = "notification";
-        notification.textContent = message;
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.remove();
-        }, 3500);
-
-    },
-
-
-    // =====================================
-    // AUTHENTICATION SCREEN
-    // =====================================
-
-    showAuthentication() {
-
-        this.root.innerHTML = `
-            <div style="
-                width:100%;
-                min-height:100vh;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                padding:20px;
-            ">
-
-                <div class="form-container">
-
-                    <div style="text-align:center;margin-bottom:30px;">
-                        <h1 class="logo">PROJECT JUDAS</h1>
-
-                        <p style="
-                            color:var(--text-muted);
-                            font-size:10px;
-                            margin-top:12px;
-                            letter-spacing:2px;
-                        ">
-                            SECURE COMMUNICATION NETWORK
-                        </p>
-                    </div>
-
-                    <div id="auth-form"></div>
-
-                </div>
-
-            </div>
-        `;
-
-        this.showLoginForm();
-
-    },
-
-
-    // =====================================
-    // LOGIN FORM
-    // =====================================
-
-    showLoginForm() {
-
-        const form = document.getElementById("auth-form");
-
-        form.innerHTML = `
-            <h2 class="form-title">WELCOME BACK</h2>
-
-            <p class="form-description">
-                Sign in to access your Project Judas account.
-            </p>
-
-            <form id="login-form">
-
-                <div class="form-group">
-                    <label class="form-label">EMAIL ADDRESS</label>
-
-                    <input
-                        class="form-input"
-                        id="login-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        autocomplete="email"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">PASSWORD</label>
-
-                    <input
-                        class="form-input"
-                        id="login-password"
-                        type="password"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        required
-                    >
-                </div>
-
-                <p
-                    id="login-error"
-                    style="color:var(--danger);font-size:11px;margin-bottom:15px;"
-                ></p>
-
-                <button class="btn btn-primary" type="submit" style="width:100%;">
-                    SIGN IN
-                </button>
-
-            </form>
-
-            <p style="
-                text-align:center;
-                color:var(--text-muted);
-                font-size:11px;
-                margin-top:25px;
-            ">
-                Don't have an account?
-
-                <button
-                    id="show-register"
-                    class="btn"
-                    type="button"
-                    style="margin-left:5px;"
-                >
-                    REGISTER
-                </button>
-            </p>
-        `;
-
-        document.getElementById("login-form").addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                const email = document.getElementById("login-email").value.trim();
-                const password = document.getElementById("login-password").value;
-
-                const button = event.currentTarget.querySelector("button[type='submit']");
-                const errorBox = document.getElementById("login-error");
-
-                button.disabled = true;
-                button.textContent = "SIGNING IN...";
-
-                const result = await JudasAuth.login(email, password);
-
-                if (!result.success) {
-                    errorBox.textContent = result.message;
-                    button.disabled = false;
-                    button.textContent = "SIGN IN";
-                    return;
-                }
-
-                await this.loadUser(result.user);
-
-            }
-        );
-
-        document.getElementById("show-register").addEventListener(
-            "click",
-            () => this.showRegisterForm()
-        );
-
-    },
-
-
-    // =====================================
-    // REGISTRATION FORM
-    // =====================================
-
-    showRegisterForm() {
-
-        const form = document.getElementById("auth-form");
-
-        form.innerHTML = `
-            <h2 class="form-title">CREATE ACCOUNT</h2>
-
-            <p class="form-description">
-                Create your Project Judas account to get started.
-            </p>
-
-            <form id="register-form">
-
-                <div class="form-group">
-                    <label class="form-label">EMAIL ADDRESS</label>
-
-                    <input
-                        class="form-input"
-                        id="register-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        autocomplete="email"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">PASSWORD</label>
-
-                    <input
-                        class="form-input"
-                        id="register-password"
-                        type="password"
-                        placeholder="At least 8 characters"
-                        minlength="8"
-                        autocomplete="new-password"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">CONFIRM PASSWORD</label>
-
-                    <input
-                        class="form-input"
-                        id="register-confirm"
-                        type="password"
-                        placeholder="Enter your password again"
-                        minlength="8"
-                        autocomplete="new-password"
-                        required
-                    >
-                </div>
-
-                <p
-                    id="register-error"
-                    style="color:var(--danger);font-size:11px;margin-bottom:15px;"
-                ></p>
-
-                <button class="btn btn-primary" type="submit" style="width:100%;">
-                    CREATE ACCOUNT
-                </button>
-
-            </form>
-
-            <p style="
-                text-align:center;
-                color:var(--text-muted);
-                font-size:11px;
-                margin-top:25px;
-            ">
-                Already registered?
-
-                <button
-                    id="show-login"
-                    class="btn"
-                    type="button"
-                    style="margin-left:5px;"
-                >
-                    SIGN IN
-                </button>
-            </p>
-        `;
-
-        document.getElementById("register-form").addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                const email = document.getElementById("register-email").value.trim();
-                const password = document.getElementById("register-password").value;
-                const confirm = document.getElementById("register-confirm").value;
-
-                const button = event.currentTarget.querySelector("button[type='submit']");
-                const errorBox = document.getElementById("register-error");
-
-                if (password !== confirm) {
-                    errorBox.textContent = "Your passwords do not match.";
-                    return;
-                }
-
-                button.disabled = true;
-                button.textContent = "CREATING ACCOUNT...";
-
-                const result = await JudasAuth.register(email, password);
-
-                if (!result.success) {
-                    errorBox.textContent = result.message;
-                    button.disabled = false;
-                    button.textContent = "CREATE ACCOUNT";
-                    return;
-                }
-
-                if (result.session) {
-                    await this.loadUser(result.user);
-                    return;
-                }
-
-                form.innerHTML = `
-                    <h2 class="form-title">CHECK YOUR EMAIL</h2>
-
-                    <p class="form-description">
-                        Your account has been created.
-
-                        A confirmation link has been sent to:
-                    </p>
-
-                    <p style="
-                        color:var(--green);
-                        font-size:12px;
-                        margin-bottom:20px;
-                        overflow-wrap:anywhere;
-                    "></p>
-
-                    <p class="form-description">
-                        Confirm your email, then return here and sign in.
-                    </p>
-
-                    <button
-                        class="btn btn-primary"
-                        id="return-login"
-                        style="width:100%;"
-                    >
-                        RETURN TO LOGIN
-                    </button>
-                `;
-
-                form.querySelector("p[style*='overflow-wrap']").textContent = email;
-
-                document.getElementById("return-login").addEventListener(
-                    "click",
-                    () => this.showLoginForm()
-                );
-
-            }
-        );
-
-        document.getElementById("show-login").addEventListener(
-            "click",
-            () => this.showLoginForm()
-        );
-
-    },
-
-
-    // =====================================
-    // LOAD USER PROFILE
-    // =====================================
-
-    async loadUser(user) {
-
-        if (!user) {
-            this.showAuthentication();
-            return;
-        }
-
-        this.currentUser = user;
-
-        this.showLoading();
-
-        let profile = null;
-
-        for (let attempt = 0; attempt < 5; attempt++) {
-
-            const { data, error } = await supabaseClient
-                .from("profiles")
-                .select("*")
-                .eq("id", user.id)
-                .maybeSingle();
-
-            if (error) {
-                console.error("Profile loading error:", error);
-                this.notify("Could not load your profile.");
-                return;
-            }
-
-            if (data) {
-                profile = data;
-                break;
-            }
-
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-        }
-
-        if (!profile) {
-            this.root.innerHTML = `
-                <div class="empty-state">
-                    <h2>PROFILE NOT FOUND</h2>
-                    <p>Your account exists, but its profile could not be loaded.</p>
-                </div>
-            `;
-            return;
-        }
-
-        this.currentProfile = profile;
-
-        if (!profile.username) {
-            this.showProfileSetup();
-            return;
-        }
-
-        this.showDashboard();
-
-    },
-
-
-    // =====================================
-    // FIRST-TIME PROFILE SETUP
-    // =====================================
-
-    showProfileSetup() {
-
-        this.root.innerHTML = `
-            <div style="
-                width:100%;
-                min-height:100vh;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                padding:20px;
-                overflow-y:auto;
-            ">
-
-                <div class="form-container" style="max-width:500px;">
-
-                    <h2 class="form-title">SET UP YOUR PROFILE</h2>
-
-                    <p class="form-description">
-                        Before entering Project Judas, choose how other users
-                        will see you.
-                    </p>
-
-                    <form id="profile-setup-form">
-
-                        <div class="form-group">
-                            <label class="form-label">USERNAME</label>
-
-                            <input
-                                class="form-input"
-                                id="profile-username"
-                                type="text"
-                                minlength="3"
-                                maxlength="24"
-                                pattern="[A-Za-z0-9_]+"
-                                placeholder="Your unique username"
-                                required
-                            >
-
-                            <p style="color:var(--text-muted);font-size:10px;margin-top:6px;">
-                                3–24 characters. Letters, numbers, and underscores.
-                            </p>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">DISPLAY NAME</label>
-
-                            <input
-                                class="form-input"
-                                id="profile-display-name"
-                                type="text"
-                                maxlength="40"
-                                placeholder="How should people see your name?"
-                                required
-                            >
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">BIO</label>
-
-                            <textarea
-                                class="form-textarea"
-                                id="profile-bio"
-                                maxlength="300"
-                                placeholder="Tell people a little about yourself..."
-                            ></textarea>
-
-                            <p style="color:var(--text-muted);font-size:10px;margin-top:6px;">
-                                Maximum 300 characters.
-                            </p>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">PRONOUNS (OPTIONAL)</label>
-
-                            <input
-                                class="form-input"
-                                id="profile-pronouns"
-                                type="text"
-                                maxlength="40"
-                                placeholder="e.g. they/them"
-                            >
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">PROFILE PICTURE (OPTIONAL)</label>
-
-                            <input
-                                class="form-input"
-                                id="profile-avatar"
-                                type="file"
-                                accept="image/*"
-                            >
-
-                            <p style="color:var(--text-muted);font-size:10px;margin-top:6px;">
-                                Maximum file size: 10 MB.
-                            </p>
-                        </div>
-
-                        <p
-                            id="profile-error"
-                            style="color:var(--danger);font-size:11px;margin-bottom:15px;"
-                        ></p>
-
-                        <button
-                            class="btn btn-primary"
-                            type="submit"
-                            style="width:100%;"
-                        >
-                            COMPLETE PROFILE
-                        </button>
-
-                    </form>
-
-                </div>
-
-            </div>
-        `;
-
-        document.getElementById("profile-setup-form").addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                const username = document.getElementById("profile-username").value.trim();
-                const displayName = document.getElementById("profile-display-name").value.trim();
-                const bio = document.getElementById("profile-bio").value.trim();
-                const pronouns = document.getElementById("profile-pronouns").value.trim();
-                const avatarInput = document.getElementById("profile-avatar");
-
-                const errorBox = document.getElementById("profile-error");
-                const button = event.currentTarget.querySelector("button[type='submit']");
-
-                if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
-                    errorBox.textContent = "Username must be 3–24 characters and use only letters, numbers, or underscores.";
-                    return;
-                }
-
-                if (!displayName || displayName.length > 40) {
-                    errorBox.textContent = "Please enter a display name (maximum 40 characters).";
-                    return;
-                }
-
-                if (bio.length > 300 || pronouns.length > 40) {
-                    errorBox.textContent = "Your bio or pronouns are too long.";
-                    return;
-                }
-
-                const avatarFile = avatarInput.files[0];
-
-                if (avatarFile) {
-
-                    if (!avatarFile.type.startsWith("image/")) {
-                        errorBox.textContent = "Please choose an image file.";
-                        return;
-                    }
-
-                    if (avatarFile.size > 10 * 1024 * 1024) {
-                        errorBox.textContent = "Your profile picture must be 10 MB or smaller.";
-                        return;
-                    }
-
-                }
-
-                button.disabled = true;
-                button.textContent = "SAVING PROFILE...";
-
-                let avatarPath = null;
-
-                try {
-
-                    if (avatarFile) {
-
-                        const extension = avatarFile.name.split(".").pop().toLowerCase();
-
-                        avatarPath = `${this.currentUser.id}/avatar.${extension}`;
-
-                        const { error: uploadError } = await supabaseClient
-                            .storage
-                            .from("avatars")
-                            .upload(avatarPath, avatarFile, {
-                                upsert: true,
-                                contentType: avatarFile.type
-                            });
-
-                        if (uploadError) {
-                            throw uploadError;
-                        }
-
-                    }
-
-                    const updates = {
-                        username: username,
-                        display_name: displayName,
-                        bio: bio,
-                        pronouns: pronouns,
-                        avatar_url: avatarPath
-                    };
-
-                    const { data, error } = await supabaseClient
-                        .from("profiles")
-                        .update(updates)
-                        .eq("id", this.currentUser.id)
-                        .select()
-                        .single();
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    this.currentProfile = data;
-
-                    this.notify("Profile created successfully!");
-
-                    this.showDashboard();
-
-                } catch (error) {
-
-                    console.error("Profile setup error:", error);
-
-                    if (error.code === "23505") {
-                        errorBox.textContent = "That username is already taken. Please choose another.";
-                    } else {
-                        errorBox.textContent = error.message;
-                    }
-
-                    button.disabled = false;
-                    button.textContent = "COMPLETE PROFILE";
-
-                }
-
-            }
-        );
-
-    },
-
-
-    // =====================================
-    // MAIN DASHBOARD
-    // =====================================
-
-    async showDashboard() {
-
-        const profile = this.currentProfile;
-
-        this.root.innerHTML = `
-            <div class="app-container">
-
-                <aside class="sidebar">
-
-                    <div class="sidebar-header">
-                        <div class="logo">JUDAS</div>
-                        <div class="logo-subtitle">COMMUNICATION NETWORK</div>
-                    </div>
-
-                    <nav class="sidebar-navigation">
-
-                        <div class="nav-label">COMMUNICATION</div>
-
-                        <button class="nav-item active" data-page="messages">
-                            <span class="nav-icon">✉</span>
-                            <span class="nav-text">Messages</span>
-                        </button>
-
-                        <button class="nav-item" data-page="groups">
-                            <span class="nav-icon">▣</span>
-                            <span class="nav-text">Group Chats</span>
-                        </button>
-
-                        <button class="nav-item" data-page="users">
-                            <span class="nav-icon">⌕</span>
-                            <span class="nav-text">Find Users</span>
-                        </button>
-
-                        <div class="nav-label">OTHER</div>
-
-                        <button class="nav-item" data-page="announcements">
-                            <span class="nav-icon">▤</span>
-                            <span class="nav-text">Announcements</span>
-                        </button>
-
-                        <button class="nav-item" data-page="profile">
-                            <span class="nav-icon">◉</span>
-                            <span class="nav-text">Profile</span>
-                        </button>
-
-                        <button class="nav-item" data-page="settings">
-                            <span class="nav-icon">⚙</span>
-                            <span class="nav-text">Settings</span>
-                        </button>
-
-                    </nav>
-
-                    <div class="sidebar-footer">
-
-                        <div class="user-mini">
-
-                            <div class="avatar" id="sidebar-avatar">
-                                ${this.escapeHTML(profile.display_name || profile.username).charAt(0).toUpperCase()}
-                            </div>
-
-                            <div class="user-mini-info">
-
-                                <div class="user-mini-name" id="sidebar-name"></div>
-
-                                <div class="user-mini-status">
-                                    <span class="status-dot"></span>
-                                    ONLINE
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        <button
-                            class="btn btn-danger"
-                            id="logout-button"
-                            style="width:100%;margin-top:10px;"
-                        >
-                            LOG OUT
-                        </button>
-
-                    </div>
-
-                </aside>
-
-                <main class="main-content">
-
-                    <header class="page-header">
-
-                        <div>
-                            <div class="page-title" id="page-title">MESSAGES</div>
-
-                            <div class="page-subtitle">
-                                PROJECT JUDAS / SECURE CONNECTION
-                            </div>
-                        </div>
-
-                    </header>
-
-                    <section id="page-content" style="
-                        flex:1;
-                        min-height:0;
-                        overflow:auto;
-                        display:flex;
-                        flex-direction:column;
-                    ">
-
-                        <div class="empty-state">
-                            <h2>WELCOME TO PROJECT JUDAS</h2>
-                            <p>
-                                Your account is ready. Messaging features
-                                will appear here as we build them.
-                            </p>
-                        </div>
-
-                    </section>
-
-                </main>
-
-            </div>
-        `;
-
-        const avatar = document.getElementById("sidebar-avatar");
-
-        if (profile.avatar_url) {
-
-            const { data, error } = await supabaseClient
-                .storage
-                .from("avatars")
-                .createSignedUrl(profile.avatar_url, 3600);
-
-            if (!error && data) {
-
-                const image = document.createElement("img");
-                image.src = data.signedUrl;
-                image.alt = "Profile picture";
-
-                avatar.textContent = "";
-                avatar.appendChild(image);
-
-            }
-
-        }
-
-        document.getElementById("sidebar-name").textContent =
-            profile.display_name || profile.username;
-
-        document.getElementById("logout-button").addEventListener(
-            "click",
-            async () => {
-
-                const result = await JudasAuth.logout();
-
-                if (!result.success) {
-                    this.notify(result.message);
-                }
-
-            }
-        );
-
-        document.querySelectorAll(".nav-item").forEach(button => {
-
-            button.addEventListener("click", () => {
-
-                document.querySelectorAll(".nav-item").forEach(item => {
-                    item.classList.remove("active");
-                });
-
-                button.classList.add("active");
-
-                const page = button.dataset.page;
-
-                const titles = {
-                    messages: "MESSAGES",
-                    groups: "GROUP CHATS",
-                    users: "FIND USERS",
-                    announcements: "ANNOUNCEMENTS",
-                    profile: "PROFILE",
-                    settings: "SETTINGS"
-                };
-
-                document.getElementById("page-title").textContent =
-                    titles[page] || "PROJECT JUDAS";
-
-                if (page === "users") {
-                    this.showFindUsers();
-                    return;
-                }
-
-                document.getElementById("page-content").innerHTML = `
-                    <div class="empty-state">
-                        <h2>${this.escapeHTML(titles[page] || "PROJECT JUDAS")}</h2>
-                        <p>This section is being built.</p>
-                    </div>
-                `;
-
-            });
-
-        });
-
-    },
-
-
-    // =====================================
-    // FIND USERS PAGE
-    // =====================================
-
-    showFindUsers() {
-
-        const content = document.getElementById("page-content");
-
-        if (!content) return;
-
-        content.innerHTML = `
-            <div style="
-                width:100%;
-                max-width:850px;
-                margin:0 auto;
-                padding:25px;
-            ">
-
-                <div style="margin-bottom:25px;">
-
-                    <h2 class="form-title">FIND USERS</h2>
-
-                    <p class="form-description" style="margin-bottom:15px;">
-                        Search the Project Judas network for other users.
-                    </p>
-
-                    <input
-                        type="search"
-                        class="chat-search"
-                        id="user-search"
-                        placeholder="Search by username or display name..."
-                        autocomplete="off"
-                        maxlength="40"
-                    >
-
-                    <p style="
-                        color:var(--text-dim);
-                        font-size:9px;
-                        margin-top:8px;
-                    ">
-                        ENTER A USERNAME OR DISPLAY NAME TO BEGIN SEARCHING.
-                    </p>
-
-                </div>
-
-                <div
-                    id="user-search-status"
-                    style="
-                        color:var(--text-muted);
-                        font-size:10px;
-                        margin-bottom:15px;
-                    "
-                >
-                    READY TO SEARCH.
-                </div>
-
-                <div
-                    id="user-search-results"
-                    style="
-                        display:flex;
-                        flex-direction:column;
-                        gap:10px;
-                    "
-                >
-
-                    <div class="empty-state" style="min-height:180px;">
-                        <h2>USER DIRECTORY</h2>
-                        <p>Search for someone to see their profile.</p>
-                    </div>
-
-                </div>
-
-            </div>
-        `;
-
-        const searchInput = document.getElementById("user-search");
-
-        let searchTimeout = null;
-        let searchVersion = 0;
-
-        searchInput.addEventListener("input", () => {
-
-            clearTimeout(searchTimeout);
-
-            const query = searchInput.value.trim();
-
-            searchVersion++;
-
-            if (!query) {
-
-                this.renderUserSearchMessage(
-                    "USER DIRECTORY",
-                    "Search for someone to see their profile."
-                );
-
-                document.getElementById("user-search-status").textContent =
-                    "READY TO SEARCH.";
-
-                return;
-
-            }
-
-            if (query.length < 2) {
-
-                this.renderUserSearchMessage(
-                    "KEEP TYPING",
-                    "Enter at least 2 characters to search."
-                );
-
-                document.getElementById("user-search-status").textContent =
-                    "SEARCH REQUIRES 2 CHARACTERS.";
-
-                return;
-
-            }
-
-            const currentVersion = searchVersion;
-
-            document.getElementById("user-search-status").textContent =
-                "SEARCHING NETWORK...";
-
-            this.renderUserSearchMessage(
-                "SEARCHING",
-                "Looking for matching users..."
-            );
-
-            searchTimeout = setTimeout(async () => {
-
-                await this.searchUsers(query, currentVersion, () => searchVersion);
-
-            }, 350);
-
-        });
-
-        searchInput.focus();
-
-    },
-
-
-    // =====================================
-    // SEARCH USERS IN SUPABASE
-    // =====================================
-
-    async searchUsers(query, version, getCurrentVersion) {
-
-        const resultsContainer = document.getElementById("user-search-results");
-        const status = document.getElementById("user-search-status");
-
-        if (!resultsContainer || !status) return;
-
-        const safeQuery = query
-            .replace(/[%_\\]/g, character => "\\" + character)
-            .replace(/,/g, "");
-
-        try {
-
-            const { data, error } = await supabaseClient
-                .from("profiles")
-                .select("id, username, display_name, bio, pronouns, avatar_url")
-                .or(
-                    `username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`
-                )
-                .neq("id", this.currentUser.id)
-                .order("username", { ascending: true })
-                .limit(25);
-
-            if (version !== getCurrentVersion()) return;
-
-            if (error) {
-                throw error;
-            }
-
-            if (!data || data.length === 0) {
-
-                status.textContent = "SEARCH COMPLETE. 0 RESULTS.";
-
-                this.renderUserSearchMessage(
-                    "NO USERS FOUND",
-                    "Try another username or display name."
-                );
-
-                return;
-
-            }
-
-            status.textContent =
-                `SEARCH COMPLETE. ${data.length} USER${data.length === 1 ? "" : "S"} FOUND.`;
-
-            await this.renderUserResults(data, version, getCurrentVersion);
-
-        } catch (error) {
-
-            console.error("User search error:", error);
-
-            if (version !== getCurrentVersion()) return;
-
-            status.textContent = "SEARCH FAILED.";
-
-            this.renderUserSearchMessage(
-                "CONNECTION ERROR",
-                "Could not search the user directory. Please try again."
-            );
-
-        }
-
-    },
-
-
-    // =====================================
-    // RENDER USER SEARCH RESULTS
-    // =====================================
-
-    async renderUserResults(users, version, getCurrentVersion) {
-
-        const container = document.getElementById("user-search-results");
-
-        if (!container) return;
-
-        container.innerHTML = "";
-
-        for (const user of users) {
-
-            let avatarUrl = null;
-
-            if (user.avatar_url) {
-
-                const { data, error } = await supabaseClient
-                    .storage
-                    .from("avatars")
-                    .createSignedUrl(user.avatar_url, 3600);
-
-                if (!error && data) {
-                    avatarUrl = data.signedUrl;
-                }
-
-            }
-
-            if (version !== getCurrentVersion()) return;
-
-            const card = document.createElement("div");
-
-            card.style.cssText = `
-                display:flex;
-                align-items:center;
-                gap:15px;
-                padding:15px;
-                background:var(--surface);
-                border:1px solid var(--border);
-                min-width:0;
-            `;
-
-            const avatar = document.createElement("div");
-            avatar.className = "avatar";
-            avatar.style.cssText = `
-                width:52px;
-                height:52px;
-                min-width:52px;
-                font-size:18px;
-            `;
-
-            if (avatarUrl) {
-
-                const image = document.createElement("img");
-                image.src = avatarUrl;
-                image.alt = "Profile picture";
-                avatar.appendChild(image);
-
-            } else {
-
-                avatar.textContent = (
-                    user.display_name || user.username || "?"
-                ).charAt(0).toUpperCase();
-
-            }
-
-            const info = document.createElement("div");
-
-            info.style.cssText = `
-                flex:1;
-                min-width:0;
-            `;
-
-            const displayName = document.createElement("div");
-            displayName.style.cssText = `
-                color:var(--text);
-                font-size:12px;
-                overflow-wrap:anywhere;
-            `;
-            displayName.textContent = user.display_name || user.username;
-
-            const username = document.createElement("div");
-            username.style.cssText = `
-                color:var(--green);
-                font-size:10px;
-                margin-top:4px;
-                overflow-wrap:anywhere;
-            `;
-            username.textContent = "@" + user.username;
-
-            const bio = document.createElement("div");
-            bio.style.cssText = `
-                color:var(--text-muted);
-                font-size:9px;
-                margin-top:7px;
-                overflow-wrap:anywhere;
-            `;
-            bio.textContent = user.bio || "No bio provided.";
-
-            const pronouns = document.createElement("div");
-            pronouns.style.cssText = `
-                color:var(--text-dim);
-                font-size:9px;
-                margin-top:5px;
-            `;
-            pronouns.textContent = user.pronouns || "";
-
-            info.append(displayName, username, bio);
-
-            if (user.pronouns) {
-                info.appendChild(pronouns);
-            }
-
-            const viewButton = document.createElement("button");
-            viewButton.className = "btn";
-            viewButton.textContent = "VIEW";
-            viewButton.type = "button";
-
-            viewButton.addEventListener("click", () => {
-                this.showPublicProfile(user);
-            });
-
-            card.append(avatar, info, viewButton);
-
-            container.appendChild(card);
-
-        }
-
-    },
-
-
-    // =====================================
-    // SEARCH EMPTY / STATUS MESSAGE
-    // =====================================
-
-    renderUserSearchMessage(title, message) {
-
-        const container = document.getElementById("user-search-results");
-
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="empty-state" style="min-height:180px;">
-                <h2>${this.escapeHTML(title)}</h2>
-                <p>${this.escapeHTML(message)}</p>
-            </div>
-        `;
-
-    },
-
-
-    // =====================================
-    // VIEW PUBLIC USER PROFILE
-    // =====================================
-
-    async showPublicProfile(user) {
-
-        const content = document.getElementById("page-content");
-
-        if (!content) return;
-
-        content.innerHTML = `
-            <div style="
-                width:100%;
-                max-width:700px;
-                margin:30px auto;
-                padding:20px;
-            ">
-
-                <button
-                    class="btn"
-                    id="back-to-user-search"
-                    style="margin-bottom:20px;"
-                >
-                    &lt; BACK TO SEARCH
-                </button>
-
-                <div class="profile-container" style="margin:0;">
-
-                    <div class="profile-header">
-
-                        <div class="profile-avatar" id="public-profile-avatar">
-                            ${this.escapeHTML(
-                                (user.display_name || user.username || "?")
-                                    .charAt(0)
-                                    .toUpperCase()
-                            )}
-                        </div>
-
-                        <div style="min-width:0;">
-
-                            <div class="profile-display-name">
-                                ${this.escapeHTML(user.display_name || user.username)}
-                            </div>
-
-                            <div class="profile-username">
-                                @${this.escapeHTML(user.username)}
-                            </div>
-
-                            <div
-                                id="public-profile-pronouns"
-                                style="
-                                    color:var(--text-muted);
-                                    font-size:10px;
-                                    margin-top:7px;
-                                "
-                            >
-                                ${this.escapeHTML(user.pronouns || "")}
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <div>
-
-                        <div class="form-label">ABOUT</div>
-
-                        <div class="profile-bio">
-                            ${this.escapeHTML(user.bio || "This user has not written a bio.")}
-                        </div>
-
-                    </div>
-
-                    <div style="
-                        border-top:1px solid var(--border);
-                        margin-top:25px;
-                        padding-top:20px;
-                    ">
-
-                        <p style="
-                            color:var(--text-dim);
-                            font-size:9px;
-                        ">
-                            PROJECT JUDAS USER DIRECTORY
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
-        `;
-
-        document.getElementById("back-to-user-search").addEventListener(
-            "click",
-            () => this.showFindUsers()
-        );
-
-        if (user.avatar_url) {
-
-            const { data, error } = await supabaseClient
-                .storage
-                .from("avatars")
-                .createSignedUrl(user.avatar_url, 3600);
-
-            if (!error && data) {
-
-                const avatar = document.getElementById("public-profile-avatar");
-
-                if (avatar) {
-
-                    const image = document.createElement("img");
-                    image.src = data.signedUrl;
-                    image.alt = "Profile picture";
-
-                    avatar.textContent = "";
-                    avatar.appendChild(image);
-
-                }
-
-            }
-
-        }
-
-    },
-
-
-    // =====================================
-    // SAFE HTML TEXT
-    // =====================================
-
-    escapeHTML(value) {
-
-        return String(value ?? "").replace(/[&<>"']/g, character => {
-
-            const entities = {
-                "&": "&amp;",
-                "<": "&lt;",
-                ">": "&gt;",
-                '"': "&quot;",
-                "'": "&#039;"
-            };
-
-            return entities[character];
-
-        });
-
+@import url('https://fonts.cdnfonts.com/css/vcr-osd-mono');
+
+/* =========================================
+   PROJECT JUDAS — TERMINAL INTERFACE
+   ========================================= */
+
+:root {
+    --background: #050805;
+    --surface: #090e0a;
+    --surface-light: #0d150f;
+    --surface-hover: #132018;
+    --surface-active: #182b1d;
+
+    --green: #39ff70;
+    --green-bright: #8affaa;
+    --green-dark: #16a344;
+    --green-muted: #174d29;
+
+    --text: #d8e9db;
+    --text-muted: #819487;
+    --text-dim: #53685a;
+
+    --border: #193522;
+    --border-light: #294b33;
+    --danger: #ff4545;
+
+    --font: 'VCR OSD Mono', 'Courier New', monospace;
+
+    --sidebar-width: 250px;
+    --chat-list-width: 280px;
+
+    --pixel-border: 1px solid var(--border);
+}
+
+/* =========================================
+   RESET
+   ========================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow: hidden;
+    -webkit-font-smoothing: none;
+    text-rendering: optimizeSpeed;
+}
+
+button,
+input,
+textarea,
+select {
+    font-family: var(--font);
+    font-size: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+img {
+    image-rendering: auto;
+}
+
+::selection {
+    color: #000;
+    background: var(--green);
+}
+
+:focus-visible {
+    outline: 1px solid var(--green);
+    outline-offset: 3px;
+}
+
+/* =========================================
+   SCROLLBARS
+   ========================================= */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #050805;
+    border-left: 1px solid #101a12;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #245532;
+    border: 1px solid #050805;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--green-dark);
+}
+
+* {
+    scrollbar-color: #245532 #050805;
+    scrollbar-width: thin;
+}
+
+/* =========================================
+   CRT / TERMINAL SCREEN DETAILS
+   ========================================= */
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.10) 3px
+    );
+
+    opacity: 0.22;
+}
+
+/* =========================================
+   MAIN APPLICATION
+   ========================================= */
+
+#app {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    background: var(--background);
+}
+
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--background);
+}
+
+/* =========================================
+   SIDEBAR
+   ========================================= */
+
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    background: var(--surface);
+    border-right: var(--pixel-border);
+
+    z-index: 5;
+}
+
+.sidebar-header {
+    padding: 25px 20px;
+    border-bottom: var(--pixel-border);
+    position: relative;
+}
+
+.logo {
+    color: var(--green);
+    font-size: 19px;
+    font-weight: normal;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(57, 255, 112, 0.25);
+}
+
+.logo-subtitle {
+    color: var(--text-muted);
+    font-size: 9px;
+    margin-top: 7px;
+    letter-spacing: 1px;
+}
+
+.sidebar-navigation {
+    padding: 15px 10px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.nav-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 15px 12px 8px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    width: 100%;
+    min-height: 39px;
+
+    padding: 10px 12px;
+    margin-bottom: 4px;
+
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0;
+
+    color: var(--text-muted);
+    text-align: left;
+    font-size: 11px;
+
+    transition:
+        background 120ms linear,
+        color 120ms linear,
+        border-color 120ms linear;
+}
+
+.nav-item:hover {
+    background: var(--surface-hover);
+    color: var(--green);
+    border-color: #173a24;
+}
+
+.nav-item.active {
+    background: rgba(57, 255, 112, 0.07);
+    border-color: var(--border-light);
+    color: var(--green);
+}
+
+.nav-item.active::before {
+    content: ">";
+    color: var(--green);
+    margin-right: -5px;
+}
+
+.nav-icon {
+    width: 20px;
+    min-width: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.sidebar-footer {
+    padding: 15px;
+    border-top: var(--pixel-border);
+    background: #070b08;
+}
+
+/* =========================================
+   USER PROFILE MINI CARD
+   ========================================= */
+
+.user-mini {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+
+    border: 1px solid transparent;
+    border-radius: 0;
+
+    transition: background 120ms linear;
+}
+
+.user-mini:hover {
+    background: var(--surface-hover);
+    border-color: var(--border);
+}
+
+.avatar {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+
+    border-radius: 0;
+    background: var(--green-muted);
+    border: 1px solid var(--green-dark);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--green);
+    font-size: 14px;
+    overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-mini-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.user-mini-name {
+    color: var(--text);
+    font-size: 11px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-mini-status {
+    color: var(--green-dark);
+    font-size: 9px;
+    margin-top: 4px;
+}
+
+/* =========================================
+   MAIN CONTENT
+   ========================================= */
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    background: var(--background);
+    overflow: hidden;
+}
+
+.page-header {
+    height: 65px;
+    min-height: 65px;
+
+    padding: 0 25px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: var(--pixel-border);
+    background: var(--surface);
+}
+
+.page-title {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--green);
+    letter-spacing: 1px;
+}
+
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 9px;
+    margin-top: 5px;
+}
+
+/* =========================================
+   CHAT LAYOUT
+   ========================================= */
+
+.chat-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.chat-list {
+    width: var(--chat-list-width);
+    min-width: 240px;
+
+    border-right: var(--pixel-border);
+    background: var(--surface);
+
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-list-header {
+    padding: 18px;
+    border-bottom: var(--pixel-border);
+}
+
+.chat-list-title {
+    color: var(--green);
+    font-size: 11px;
+    margin-bottom: 15px;
+}
+
+.chat-search {
+    width: 100%;
+    min-width: 0;
+
+    padding: 10px;
+
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0;
+
+    outline: none;
+    color: var(--text);
+    font-size: 10px;
+}
+
+.chat-search:focus {
+    border-color: var(--green-dark);
+    box-shadow: 0 0 0 1px rgba(57, 255, 112, 0.08);
+}
+
+.chat-search::placeholder {
+    color: var(--text-dim);
+}
+
+.chat-list-items {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 14px;
+
+    border-bottom: 1px solid rgba(25, 53, 34, 0.5);
+
+    cursor: pointer;
+    transition: background 120ms linear;
+}
+
+.chat-item:hover {
+    background: var(--surface-hover);
+}
+
+.chat-item.active {
+    background: rgba(57, 255, 112, 0.06);
+    border-left: 3px solid var(--green);
+    padding-left: 11px;
+}
+
+.chat-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-item-name {
+    color: var(--text);
+    font-size: 11px;
+    margin-bottom: 6px;
+
+    overflow-wrap: anywhere;
+}
+
+.chat-item-preview {
+    color: var(--text-muted);
+    font-size: 9px;
+
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.chat-item-time {
+    color: var(--text-dim);
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+/* =========================================
+   CHAT WINDOW
+   ========================================= */
+
+.chat-window {
+    flex: 1;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    background: var(--background);
+}
+
+.chat-header {
+    height: 65px;
+    min-height: 65px;
+
+    padding: 0 20px;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    border-bottom: var(--pixel-border);
+    background: var(--surface);
+}
+
+.chat-header-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-header-name {
+    color: var(--text);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.chat-header-status {
+    color: var(--green-dark);
+    font-size: 9px;
+    margin-top: 5px;
+}
+
+/* =========================================
+   MESSAGES
+   ========================================= */
+
+.messages {
+    flex: 1;
+    min-height: 0;
+
+    padding: 20px;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.message {
+    display: flex;
+    gap: 10px;
+
+    max-width: 75%;
+    min-width: 0;
+
+    animation: messageAppear 150ms steps(4, end);
+}
+
+.message.own {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message-content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.message-author {
+    color: var(--green);
+    font-size: 9px;
+    margin-bottom: 5px;
+}
+
+.message-bubble {
+    max-width: 100%;
+
+    padding: 11px 14px;
+
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: 0;
+
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.7;
+
+    overflow-wrap: anywhere;
+    word-break: normal;
+    white-space: pre-wrap;
+}
+
+.message.own .message-bubble {
+    background: rgba(22, 163, 68, 0.10);
+    border-color: var(--green-muted);
+    border-radius: 0;
+}
+
+.message-time {
+    color: var(--text-dim);
+    font-size: 8px;
+    margin-top: 5px;
+}
+
+.message.own .message-time {
+    text-align: right;
+}
+
+/* =========================================
+   MESSAGE INPUT
+   ========================================= */
+
+.message-input-area {
+    padding: 15px 20px;
+
+    background: var(--surface);
+    border-top: var(--pixel-border);
+}
+
+.message-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    min-width: 0;
+
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0;
+
+    padding: 5px;
+}
+
+.message-input-wrapper:focus-within {
+    border-color: var(--green-dark);
+}
+
+.message-input {
+    flex: 1;
+    min-width: 0;
+
+    padding: 10px;
+
+    background: transparent;
+    border: none;
+    outline: none;
+
+    color: var(--text);
+    font-size: 11px;
+}
+
+.message-input::placeholder {
+    color: var(--text-dim);
+}
+
+/* =========================================
+   BUTTONS
+   ========================================= */
+
+.btn {
+    padding: 10px 15px;
+
+    background: transparent;
+    border: 1px solid var(--green-dark);
+    border-radius: 0;
+
+    color: var(--green);
+    font-size: 10px;
+
+    transition:
+        background 120ms linear,
+        color 120ms linear,
+        border-color 120ms linear;
+}
+
+.btn:hover {
+    background: var(--green);
+    color: #000;
+    border-color: var(--green);
+    box-shadow: none;
+}
+
+.btn:active {
+    transform: translate(1px, 1px);
+}
+
+.btn-primary {
+    background: var(--green-dark);
+    color: #000;
+    border-color: var(--green-dark);
+}
+
+.btn-primary:hover {
+    background: var(--green);
+    color: #000;
+}
+
+.btn-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-danger:hover {
+    background: var(--danger);
+    color: #000;
+}
+
+.icon-button {
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0;
+
+    color: var(--text-muted);
+    font-size: 15px;
+
+    transition: 120ms linear;
+}
+
+.icon-button:hover {
+    color: var(--green);
+    background: var(--surface-hover);
+    border-color: var(--border);
+}
+
+/* =========================================
+   FORMS
+   ========================================= */
+
+.form-container {
+    width: 100%;
+    max-width: 450px;
+
+    margin: auto;
+    padding: 30px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+
+    box-shadow: 4px 4px 0 #020402;
+}
+
+.form-title {
+    color: var(--green);
+    font-size: 17px;
+    font-weight: normal;
+    margin-bottom: 10px;
+}
+
+.form-description {
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.8;
+    margin-bottom: 25px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 9px;
+    margin-bottom: 8px;
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    min-width: 0;
+
+    padding: 12px;
+
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0;
+
+    outline: none;
+    color: var(--text);
+    font-size: 10px;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px rgba(57, 255, 112, 0.08);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+    color: var(--text-dim);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.7;
+}
+
+/* =========================================
+   PROFILE
+   ========================================= */
+
+.profile-container {
+    width: 100%;
+    max-width: 700px;
+
+    margin: 30px auto;
+    padding: 25px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    padding-bottom: 25px;
+    border-bottom: var(--pixel-border);
+    margin-bottom: 25px;
+}
+
+.profile-avatar {
+    width: 90px;
+    height: 90px;
+    min-width: 90px;
+
+    border-radius: 0;
+    background: var(--green-muted);
+    border: 1px solid var(--green);
+
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: var(--green);
+    font-size: 24px;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-display-name {
+    color: var(--text);
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+.profile-username {
+    color: var(--green);
+    font-size: 10px;
+    margin-top: 7px;
+    overflow-wrap: anywhere;
+}
+
+.profile-bio {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.8;
+    margin-top: 12px;
+    overflow-wrap: anywhere;
+}
+
+/* =========================================
+   EMPTY STATES
+   ========================================= */
+
+.empty-state {
+    flex: 1;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    text-align: center;
+    padding: 30px;
+
+    color: var(--text-muted);
+}
+
+.empty-state h2 {
+    color: var(--green);
+    font-size: 13px;
+    font-weight: normal;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 10px;
+    line-height: 1.8;
+    max-width: 350px;
+    overflow-wrap: anywhere;
+}
+
+/* =========================================
+   STATUS INDICATORS
+   ========================================= */
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+
+    display: inline-block;
+
+    border-radius: 0;
+    background: var(--green);
+
+    box-shadow: 0 0 5px rgba(57, 255, 112, 0.45);
+}
+
+.status-dot.offline {
+    background: #555;
+    box-shadow: none;
+}
+
+/* =========================================
+   NOTIFICATIONS
+   ========================================= */
+
+.notification {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+
+    max-width: min(380px, calc(100vw - 40px));
+
+    padding: 14px 18px;
+
+    background: var(--surface-light);
+    border: 1px solid var(--green-dark);
+    border-left: 3px solid var(--green);
+    border-radius: 0;
+
+    color: var(--green);
+    font-size: 10px;
+    line-height: 1.7;
+
+    overflow-wrap: anywhere;
+
+    z-index: 100;
+
+    animation: notificationAppear 180ms steps(4, end);
+}
+
+/* =========================================
+   ANIMATIONS
+   ========================================= */
+
+@keyframes messageAppear {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
     }
 
-};
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
+@keyframes notificationAppear {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
 
-// =========================================
-// START PROJECT JUDAS
-// =========================================
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-window.JudasApp = JudasApp;
+/* =========================================
+   LOADING
+   ========================================= */
 
-document.addEventListener("DOMContentLoaded", () => {
-    JudasApp.init();
-});
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    padding: 30px;
+}
+
+.loading span {
+    width: 6px;
+    height: 6px;
+
+    border-radius: 0;
+    background: var(--green);
+
+    animation: loadingPulse 1s infinite steps(2, end);
+}
+
+.loading span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes loadingPulse {
+    0%, 80%, 100% {
+        opacity: 0.2;
+    }
+
+    40% {
+        opacity: 1;
+    }
+}
+
+/* =========================================
+   TEXT AND CONTENT SAFETY
+   ========================================= */
+
+p,
+h1,
+h2,
+h3,
+span,
+label,
+a {
+    overflow-wrap: break-word;
+}
+
+input,
+textarea,
+select {
+    max-width: 100%;
+}
+
+button {
+    max-width: 100%;
+}
+
+.form-container,
+.profile-container,
+.chat-window,
+.chat-list,
+.main-content {
+    min-width: 0;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN
+   ========================================= */
+
+@media (max-width: 900px) {
+    :root {
+        --sidebar-width: 210px;
+        --chat-list-width: 230px;
+    }
+
+    .chat-list {
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 650px) {
+    .sidebar {
+        width: 65px;
+        min-width: 65px;
+    }
+
+    .sidebar-header {
+        padding: 20px 5px;
+        text-align: center;
+    }
+
+    .logo {
+        font-size: 10px;
+        letter-spacing: 0;
+    }
+
+    .logo-subtitle,
+    .nav-label,
+    .nav-text,
+    .user-mini-info {
+        display: none;
+    }
+
+    .nav-item {
+        justify-content: center;
+        padding: 14px 5px;
+    }
+
+    .nav-item.active::before {
+        display: none;
+    }
+
+    .nav-icon {
+        font-size: 16px;
+    }
+
+    .user-mini {
+        justify-content: center;
+        padding: 5px;
+    }
+
+    .chat-list {
+        width: 180px;
+        min-width: 150px;
+    }
+
+    .page-header {
+        padding: 0 12px;
+    }
+
+    .message {
+        max-width: 90%;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 10px;
+    }
+
+    .chat-list {
+        width: 135px;
+        min-width: 115px;
+    }
+
+    .chat-item {
+        gap: 7px;
+        padding: 10px 7px;
+    }
+
+    .chat-list-header {
+        padding: 10px;
+    }
+
+    .messages {
+        padding: 12px 8px;
+    }
+
+    .message-input-area {
+        padding: 10px;
+    }
+
+    .message-input {
+        font-size: 10px;
+    }
+
+    .form-container {
+        padding: 20px;
+    }
+
+    .profile-container {
+        padding: 15px;
+    }
+
+    .profile-header {
+        gap: 12px;
+    }
+
+    .profile-avatar {
+        width: 65px;
+        height: 65px;
+        min-width: 65px;
+    }
+}
+
+/* =========================================
+   ACCESSIBILITY
+   ========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
