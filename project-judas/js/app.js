@@ -818,6 +818,16 @@ const JudasApp = {
                     return;
                 }
 
+                if (page === "profile") {
+                    await this.showProfileSettings();
+                    return;
+                }
+
+                if (page === "announcements") {
+                    await this.showAnnouncements();
+                    return;
+                }
+
                 document.getElementById("page-content").innerHTML = `
                     <div class="empty-state">
                         <h2>${this.escapeHTML(titles[page] || "PROJECT JUDAS")}</h2>
@@ -973,7 +983,7 @@ const JudasApp = {
 
             const { data: conversations, error: conversationError } = await supabaseClient
                 .from("conversations")
-                .select("id, type, name, created_at, created_by")
+                .select("id, type, name, created_at, created_by, avatar_path")
                 .in("id", conversationIds)
                 .order("created_at", { ascending: false });
 
@@ -1130,6 +1140,19 @@ const JudasApp = {
 
                 avatar.textContent = displayName.charAt(0).toUpperCase();
 
+                if (isGroup && item.conversation.avatar_path) {
+                    const { data: avatarData } = await supabaseClient.storage
+                        .from("group-avatars")
+                        .getPublicUrl(item.conversation.avatar_path);
+                    if (avatarData?.publicUrl) {
+                        const image = document.createElement("img");
+                        image.src = avatarData.publicUrl;
+                        image.alt = "Group picture";
+                        avatar.textContent = "";
+                        avatar.appendChild(image);
+                    }
+                }
+
                 if (!isGroup && item.otherProfile?.avatar_url) {
                     const { data } = await supabaseClient
                         .storage
@@ -1268,6 +1291,12 @@ const JudasApp = {
                             placeholder="Enter a group name"
                             required
                         >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">GROUP PICTURE (OPTIONAL)</label>
+                        <input class="form-input" id="group-avatar-input" type="file" accept="image/*">
+                        <p class="form-description">You can also change this later in group management.</p>
                     </div>
 
                     <div class="form-group">
@@ -1479,6 +1508,31 @@ const JudasApp = {
                     throw new Error("The group was created, but no conversation ID was returned.");
                 }
 
+                const avatarFile = document.getElementById("group-avatar-input")?.files?.[0];
+
+                if (avatarFile) {
+                    if (!avatarFile.type.startsWith("image/") || avatarFile.size > 10 * 1024 * 1024) {
+                        this.notify("Group created, but the picture must be an image under 10 MB.");
+                    } else {
+                        const extension = (avatarFile.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                        const avatarPath = `${data}/avatar.${extension}`;
+                        const { error: uploadError } = await supabaseClient.storage
+                            .from("group-avatars")
+                            .upload(avatarPath, avatarFile, { upsert: true, contentType: avatarFile.type });
+
+                        if (!uploadError) {
+                            const { error: updateError } = await supabaseClient
+                                .from("conversations")
+                                .update({ avatar_path: avatarPath })
+                                .eq("id", data);
+
+                            if (updateError) this.notify("Group created, but its picture could not be saved.");
+                        } else {
+                            this.notify("Group created, but its picture could not be uploaded.");
+                        }
+                    }
+                }
+
                 this.notify("Group created successfully.");
                 await this.openConversation(data);
 
@@ -1669,7 +1723,7 @@ const JudasApp = {
         try {
             const { data: conversation, error: conversationError } = await supabaseClient
                 .from("conversations")
-                .select("id, type, name, created_by")
+                .select("id, type, name, created_by, avatar_path")
                 .eq("id", conversationId)
                 .single();
 
@@ -2082,6 +2136,11 @@ const JudasApp = {
 
                 ${isLeader ? `
                     <div style="margin:20px 0;padding:15px;background:var(--surface);border:1px solid var(--border);">
+                        <h3 class="form-title">GROUP PICTURE</h3>
+                        <form id="group-avatar-form" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+                            <input class="form-input" id="group-avatar-file" type="file" accept="image/*" required>
+                            <button class="btn btn-primary" type="submit">UPLOAD PICTURE</button>
+                        </form>
                         <h3 class="form-title">RENAME GROUP</h3>
                         <form id="rename-group-form" style="display:flex;gap:10px;">
                             <input
@@ -2213,6 +2272,44 @@ const JudasApp = {
         });
 
         if (isLeader) {
+            document.getElementById("group-avatar-form").addEventListener("submit", async event => {
+                event.preventDefault();
+                const file = document.getElementById("group-avatar-file").files[0];
+                if (!file || !file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) {
+                    this.notify("Choose an image under 10 MB.");
+                    return;
+                }
+                const extension = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                const path = `${conversation.id}/avatar.${extension}`;
+                const button = event.currentTarget.querySelector("button[type='submit']");
+                button.disabled = true;
+                button.textContent = "UPLOADING...";
+                const { error: uploadError } = await supabaseClient.storage
+                    .from("group-avatars")
+                    .upload(path, file, { upsert: true, contentType: file.type });
+                if (uploadError) {
+                    this.notify(uploadError.message || "Could not upload group picture.");
+                    button.disabled = false;
+                    button.textContent = "UPLOAD PICTURE";
+                    return;
+                }
+                const { error: updateError } = await supabaseClient
+                    .from("conversations")
+                    .update({ avatar_path: path })
+                    .eq("id", conversation.id);
+                if (updateError) {
+                    this.notify(updateError.message || "Could not save group picture.");
+                } else {
+                    conversation.avatar_path = path;
+                    this.currentConversationData = conversation;
+                    this.notify("Group picture updated.");
+                    await this.openConversation(conversation.id);
+                    await this.showGroupManagement();
+                }
+                button.disabled = false;
+                button.textContent = "UPLOAD PICTURE";
+            });
+
             document.getElementById("rename-group-form").addEventListener("submit", async event => {
                 event.preventDefault();
 
@@ -2538,7 +2635,7 @@ const JudasApp = {
         try {
             const { data, error } = await supabaseClient
                 .from("profiles")
-                .select("id, username, display_name, bio, pronouns, avatar_url")
+                .select("id, username, display_name, bio, pronouns, avatar_url, banner_url, status_text, status_emoji, presence_status, profile_color")
                 .or(
                     `username.ilike.%${safeQuery}%,display_name.ilike.%${safeQuery}%`
                 )
@@ -2757,6 +2854,10 @@ const JudasApp = {
                         </div>
                     </div>
 
+                    <div style="margin:12px 0;padding:10px;background:${/^#[0-9a-f]{6}$/i.test(user.profile_color || "") ? user.profile_color : "var(--surface)"};">
+                        <div style="font-size:11px;">${this.escapeHTML(user.status_emoji || "")} ${this.escapeHTML(user.status_text || "")}</div>
+                        <div style="font-size:9px;color:var(--text-muted);margin-top:5px;">${this.escapeHTML((user.presence_status || "online").toUpperCase())}</div>
+                    </div>
                     <div>
                         <div class="form-label">ABOUT</div>
                         <div class="profile-bio">
@@ -2803,6 +2904,18 @@ const JudasApp = {
             () => this.startDirectMessage(user.id)
         );
 
+        if (user.banner_url) {
+            const { data: bannerData } = await supabaseClient.storage
+                .from("profile-banners")
+                .createSignedUrl(user.banner_url, 3600);
+            if (bannerData?.signedUrl) {
+                const banner = document.createElement("div");
+                banner.style.cssText = `height:120px;margin-bottom:15px;background-image:url("${bannerData.signedUrl}");background-size:cover;background-position:center;border:1px solid var(--border);`;
+                const profileContainer = content.querySelector(".profile-container");
+                profileContainer?.prepend(banner);
+            }
+        }
+
         if (user.avatar_url) {
             const { data, error } = await supabaseClient
                 .storage
@@ -2821,6 +2934,297 @@ const JudasApp = {
                     avatar.appendChild(image);
                 }
             }
+        }
+    },
+
+
+    async showProfileSettings() {
+        const content = document.getElementById("page-content");
+        if (!content || !this.currentUser) return;
+
+        const { data: profile, error } = await supabaseClient
+            .from("profiles")
+            .select("id, username, display_name, bio, pronouns, avatar_url, banner_url, status_text, status_emoji, presence_status, profile_color")
+            .eq("id", this.currentUser.id)
+            .single();
+
+        if (error) {
+            this.notify("Could not load your profile settings.");
+            return;
+        }
+
+        this.currentProfile = profile;
+        content.innerHTML = `
+            <div style="width:100%;max-width:760px;margin:0 auto;padding:25px;">
+                <h2 class="form-title">PROFILE CUSTOMIZATION</h2>
+                <p class="form-description">Update how other users see you across Project Judas.</p>
+                <form id="profile-settings-form">
+                    <div class="form-group">
+                        <label class="form-label">DISPLAY NAME</label>
+                        <input class="form-input" id="profile-display-name" maxlength="40" value="${this.escapeHTML(profile.display_name || "")}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">BIO</label>
+                        <textarea class="form-textarea" id="profile-bio" maxlength="500" rows="4">${this.escapeHTML(profile.bio || "")}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">PRONOUNS</label>
+                        <input class="form-input" id="profile-pronouns" maxlength="40" value="${this.escapeHTML(profile.pronouns || "")}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">STATUS EMOJI</label>
+                        <input class="form-input" id="profile-status-emoji" maxlength="16" value="${this.escapeHTML(profile.status_emoji || "")}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">STATUS MESSAGE</label>
+                        <input class="form-input" id="profile-status-text" maxlength="128" value="${this.escapeHTML(profile.status_text || "")}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">PRESENCE</label>
+                        <select class="form-input" id="profile-presence">
+                            ${["online","idle","dnd","invisible"].map(value => `<option value="${value}" ${profile.presence_status === value ? "selected" : ""}>${value.toUpperCase()}</option>`).join("")}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">PROFILE COLOR</label>
+                        <input id="profile-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(profile.profile_color || "") ? profile.profile_color : "#202225"}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">PROFILE PICTURE</label>
+                        <input class="form-input" id="profile-avatar-file" type="file" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">PROFILE BANNER</label>
+                        <input class="form-input" id="profile-banner-file" type="file" accept="image/*">
+                    </div>
+                    <p id="profile-settings-error" style="color:var(--danger);font-size:11px;"></p>
+                    <button class="btn btn-primary" type="submit">SAVE PROFILE</button>
+                </form>
+            </div>
+        `;
+
+        document.getElementById("profile-settings-form").addEventListener("submit", async event => {
+            event.preventDefault();
+            const button = event.currentTarget.querySelector("button[type='submit']");
+            const errorBox = document.getElementById("profile-settings-error");
+            const avatarFile = document.getElementById("profile-avatar-file").files[0];
+            const bannerFile = document.getElementById("profile-banner-file").files[0];
+            const validImage = file => !file || (file.type.startsWith("image/") && file.size <= 10 * 1024 * 1024);
+
+            if (!validImage(avatarFile) || !validImage(bannerFile)) {
+                errorBox.textContent = "Images must be under 10 MB.";
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "SAVING...";
+            try {
+                const updates = {
+                    display_name: document.getElementById("profile-display-name").value.trim(),
+                    bio: document.getElementById("profile-bio").value,
+                    pronouns: document.getElementById("profile-pronouns").value.trim(),
+                    status_emoji: document.getElementById("profile-status-emoji").value.trim(),
+                    status_text: document.getElementById("profile-status-text").value.trim(),
+                    presence_status: document.getElementById("profile-presence").value,
+                    profile_color: document.getElementById("profile-color").value
+                };
+
+                for (const [file, bucket, column, prefix] of [
+                    [avatarFile, "avatars", "avatar_url", "avatar"],
+                    [bannerFile, "profile-banners", "banner_url", "banner"]
+                ]) {
+                    if (!file) continue;
+                    const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+                    const storagePath = `${this.currentUser.id}/${prefix}.${ext}`;
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from(bucket)
+                        .upload(storagePath, file, { upsert: true, contentType: file.type });
+                    if (uploadError) throw uploadError;
+                    updates[column] = storagePath;
+                }
+
+                const { data, error: updateError } = await supabaseClient
+                    .from("profiles")
+                    .update(updates)
+                    .eq("id", this.currentUser.id)
+                    .select()
+                    .single();
+                if (updateError) throw updateError;
+                this.currentProfile = data;
+                this.notify("Profile updated.");
+                await this.showProfileSettings();
+            } catch (error) {
+                console.error("Profile update error:", error);
+                errorBox.textContent = error.message || "Could not save your profile.";
+            } finally {
+                button.disabled = false;
+                button.textContent = "SAVE PROFILE";
+            }
+        });
+    },
+
+    async showAnnouncements() {
+        const content = document.getElementById("page-content");
+        if (!content) return;
+        const creatorId = "7dbba6f4-585e-4df1-bb91-7246bb49bd34";
+        const canPost = this.currentUser?.id === creatorId;
+
+        content.innerHTML = `
+            <div style="width:100%;max-width:850px;margin:0 auto;padding:25px;">
+                <h2 class="form-title">ANNOUNCEMENTS</h2>
+                <p class="form-description">Official Project Judas updates and notices.</p>
+                ${canPost ? `
+                    <form id="announcement-form" style="margin:20px 0;padding:16px;background:var(--surface);border:1px solid var(--border);">
+                        <label class="form-label">NEW ANNOUNCEMENT</label>
+                        <textarea class="form-textarea" id="announcement-content" rows="4" maxlength="10000" required placeholder="Write an announcement..."></textarea>
+                        <div class="form-group" style="margin-top:10px;">
+                            <label class="form-label">ATTACHMENTS</label>
+                            <input class="form-input" id="announcement-files" type="file" multiple>
+                        </div>
+                        <button class="btn btn-primary" type="submit">PUBLISH</button>
+                        <p id="announcement-error" style="color:var(--danger);font-size:11px;"></p>
+                    </form>
+                ` : ""}
+                <div id="announcement-list"><div class="empty-state"><h2>LOADING</h2></div></div>
+            </div>
+        `;
+
+        if (canPost) {
+            document.getElementById("announcement-form").addEventListener("submit", async event => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const button = form.querySelector("button[type='submit']");
+                const errorBox = document.getElementById("announcement-error");
+                const body = document.getElementById("announcement-content").value.trim();
+                const files = Array.from(document.getElementById("announcement-files").files || []);
+                if (!body) {
+                    errorBox.textContent = "Write something before publishing.";
+                    return;
+                }
+                if (files.some(file => file.size > 25 * 1024 * 1024)) {
+                    errorBox.textContent = "Each attachment must be under 25 MB.";
+                    return;
+                }
+                button.disabled = true;
+                button.textContent = "PUBLISHING...";
+                try {
+                    const { data: announcement, error } = await supabaseClient
+                        .from("announcements")
+                        .insert({ author_id: this.currentUser.id, content: body })
+                        .select()
+                        .single();
+                    if (error) throw error;
+
+                    for (const file of files) {
+                        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "attachment";
+                        const path = `${announcement.id}/${Date.now()}_${safeName}`;
+                        const { error: uploadError } = await supabaseClient.storage
+                            .from("announcements")
+                            .upload(path, file, { upsert: false, contentType: file.type || "application/octet-stream" });
+                        if (uploadError) throw uploadError;
+                        const { error: metadataError } = await supabaseClient
+                            .from("announcement_attachments")
+                            .insert({
+                                announcement_id: announcement.id,
+                                file_name: file.name,
+                                file_path: path,
+                                file_type: file.type || "application/octet-stream",
+                                file_size: file.size
+                            });
+                        if (metadataError) throw metadataError;
+                    }
+                    this.notify("Announcement published.");
+                    await this.showAnnouncements();
+                } catch (error) {
+                    console.error("Announcement publish error:", error);
+                    errorBox.textContent = error.message || "Could not publish the announcement.";
+                } finally {
+                    button.disabled = false;
+                    button.textContent = "PUBLISH";
+                }
+            });
+        }
+
+        const { data: announcements, error } = await supabaseClient
+            .from("announcements")
+            .select("id, author_id, content, created_at, updated_at")
+            .order("created_at", { ascending: false })
+            .limit(100);
+        const list = document.getElementById("announcement-list");
+        if (!list) return;
+        if (error) {
+            list.textContent = "Could not load announcements.";
+            return;
+        }
+        if (!announcements?.length) {
+            list.innerHTML = `<div class="empty-state"><h2>NO ANNOUNCEMENTS</h2><p>There are no announcements yet.</p></div>`;
+            return;
+        }
+
+        list.innerHTML = "";
+        for (const announcement of announcements) {
+            const card = document.createElement("article");
+            card.style.cssText = "padding:18px;margin:15px 0;background:var(--surface);border:1px solid var(--border);";
+            const date = document.createElement("div");
+            date.style.cssText = "font-size:10px;color:var(--text-muted);margin-bottom:10px;";
+            date.textContent = new Date(announcement.created_at).toLocaleString();
+            const body = document.createElement("div");
+            body.style.cssText = "font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;";
+            body.textContent = announcement.content;
+            card.append(date, body);
+
+            const { data: attachments } = await supabaseClient
+                .from("announcement_attachments")
+                .select("id, file_name, file_path, file_type, file_size")
+                .eq("announcement_id", announcement.id);
+            if (attachments?.length) {
+                const attachmentArea = document.createElement("div");
+                attachmentArea.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-top:14px;";
+                for (const attachment of attachments) {
+                    const { data: signed } = await supabaseClient.storage
+                        .from("announcements")
+                        .createSignedUrl(attachment.file_path, 3600);
+                    if (!signed?.signedUrl) continue;
+                    const link = document.createElement("a");
+                    link.href = signed.signedUrl;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.textContent = `${attachment.file_name} (${Math.ceil(attachment.file_size / 1024)} KB)`;
+                    link.style.cssText = "color:var(--green);font-size:11px;";
+                    attachmentArea.appendChild(link);
+                }
+                card.appendChild(attachmentArea);
+            }
+
+            if (canPost) {
+                const deleteButton = document.createElement("button");
+                deleteButton.className = "btn";
+                deleteButton.type = "button";
+                deleteButton.textContent = "DELETE";
+                deleteButton.style.marginTop = "14px";
+                deleteButton.addEventListener("click", async () => {
+                    if (!confirm("Delete this announcement and its attachments?")) return;
+                    const { data: files } = await supabaseClient
+                        .from("announcement_attachments")
+                        .select("file_path")
+                        .eq("announcement_id", announcement.id);
+                    if (files?.length) {
+                        await supabaseClient.storage.from("announcements").remove(files.map(file => file.file_path));
+                    }
+                    const { error: deleteError } = await supabaseClient
+                        .from("announcements")
+                        .delete()
+                        .eq("id", announcement.id);
+                    if (deleteError) {
+                        this.notify(deleteError.message || "Could not delete announcement.");
+                        return;
+                    }
+                    this.notify("Announcement deleted.");
+                    await this.showAnnouncements();
+                });
+                card.appendChild(deleteButton);
+            }
+            list.appendChild(card);
         }
     },
 
